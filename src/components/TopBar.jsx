@@ -1,121 +1,137 @@
-import { LayoutGrid, List, Calendar, Search, Bell, Plus, Menu, X } from 'lucide-react'
+import { LayoutGrid, List, Calendar as CalendarIcon, UserCircle, Plus, Bell, Filter, X, Users } from 'lucide-react'
+import { useState } from 'react'
 
-function TopBar({ currentView, onViewChange, onToggleSidebar, onAddTask, searchQuery, onSearchChange, notificationCount = 0, onNotificationClick }) {
+function TopBar({ 
+  currentView, 
+  onViewChange, 
+  onAddTask,
+  notificationCount,
+  onNotificationClick,
+  teamMembers = [],
+  selectedMember,
+  onMemberFilter
+}) {
+  const [showFilterMenu, setShowFilterMenu] = useState(false)
+
   const views = [
-    { id: 'board', icon: LayoutGrid, label: 'Tablero' },
-    { id: 'list', icon: List, label: 'Lista' },
-    { id: 'calendar', icon: Calendar, label: 'Calendario' },
+    { id: 'board', label: 'Tablero', icon: LayoutGrid },
+    { id: 'list', label: 'Lista', icon: List },
+    { id: 'calendar', label: 'Calendario', icon: CalendarIcon },
+    { id: 'team', label: 'Equipo', icon: UserCircle }
   ]
 
   return (
-    <header className="h-14 bg-white border-b border-neutral-200 flex items-center justify-between px-3 md:px-4 sticky top-0 z-30">
-      {/* Left Section */}
-      <div className="flex items-center space-x-2 md:space-x-3 flex-1 min-w-0">
-        <button
-          onClick={onToggleSidebar}
-          className="p-1.5 hover:bg-neutral-100 rounded-md transition-colors flex-shrink-0"
-        >
-          <Menu size={18} className="text-neutral-700" />
-        </button>
-        
-        <div className="relative flex-1 max-w-xs hidden sm:block">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" size={16} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Buscar..."
-            className="w-full pl-9 pr-8 py-1.5 bg-neutral-50 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder:text-neutral-400"
-          />
-          {searchQuery && (
+    <div className="bg-white border-b border-neutral-200">
+      <div className="px-4 sm:px-6 py-3 flex items-center justify-between">
+
+        {/* Tabs */}
+        <div className="flex items-center space-x-1">
+          {views.map(view => {
+            const Icon = view.icon
+            return (
+              <button
+                key={view.id}
+                onClick={() => onViewChange(view.id)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium ${
+                  currentView === view.id
+                    ? 'bg-primary-600 text-white'
+                    : 'text-neutral-600 hover:bg-neutral-100'
+                }`}
+              >
+                <Icon size={18} />
+                <span className="hidden sm:inline">{view.label}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center space-x-3">
+
+          {/* Filtro */}
+          {(currentView === 'board' || currentView === 'list') && (
+            <div className="relative">
+              <button
+                onClick={() => setShowFilterMenu(!showFilterMenu)}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium ${
+                  selectedMember
+                    ? 'bg-primary-100 text-primary-700'
+                    : 'bg-neutral-100 text-neutral-700'
+                }`}
+              >
+                <Filter size={16} />
+                <span>{selectedMember ? selectedMember.name : 'Filtrar'}</span>
+
+                {selectedMember && (
+                  <X
+                    size={14}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onMemberFilter(null)
+                    }}
+                  />
+                )}
+              </button>
+
+              {showFilterMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowFilterMenu(false)} />
+                  <div className="absolute right-0 mt-2 bg-white border rounded-lg shadow-lg z-50 w-60">
+
+                    <button
+                      onClick={() => {
+                        onMemberFilter(null)
+                        setShowFilterMenu(false)
+                      }}
+                      className="w-full px-4 py-2 text-left hover:bg-neutral-50"
+                    >
+                      <Users size={16} className="inline mr-2" />
+                      Todas las tareas
+                    </button>
+
+                    <div className="border-t my-2" />
+
+                    {teamMembers.map(member => (
+                      <button
+                        key={member.id}
+                        onClick={() => {
+                          onMemberFilter(member)
+                          setShowFilterMenu(false)
+                        }}
+                        className="w-full px-4 py-2 text-left hover:bg-neutral-50"
+                      >
+                        {member.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Nueva tarea */}
+          {(currentView === 'board' || currentView === 'list') && (
             <button
-              onClick={() => onSearchChange('')}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-neutral-200 rounded transition-colors"
+              onClick={onAddTask}
+              className="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
             >
-              <X size={14} className="text-neutral-500" />
+              <Plus size={16} className="inline mr-1" />
+              Nueva Tarea
             </button>
           )}
+
+          {/* Notificaciones */}
+          <button onClick={onNotificationClick} className="relative">
+            <Bell size={20} />
+            {notificationCount > 0 && (
+              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />
+            )}
+          </button>
         </div>
       </div>
-
-      {/* Center Section - View Switcher (Hidden on mobile) */}
-      <div className="hidden lg:flex items-center space-x-1 bg-neutral-100 p-1 rounded-lg">
-        {views.map((view) => {
-          const Icon = view.icon
-          return (
-            <button
-              key={view.id}
-              onClick={() => onViewChange(view.id)}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md transition-all text-sm ${
-                currentView === view.id
-                  ? 'bg-white text-primary-700 shadow-sm'
-                  : 'text-neutral-600 hover:text-neutral-900'
-              }`}
-            >
-              <Icon size={16} strokeWidth={2} />
-              <span className="font-medium">{view.label}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Right Section */}
-      <div className="flex items-center space-x-1 md:space-x-2 flex-shrink-0">
-        <button 
-          onClick={onAddTask}
-          className="flex items-center space-x-1.5 px-2 md:px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium shadow-sm"
-        >
-          <Plus size={16} strokeWidth={2.5} />
-          <span className="hidden sm:inline">Nueva</span>
-        </button>
-        
-        <button 
-          onClick={onNotificationClick}
-          className="relative p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
-        >
-          <Bell size={18} className="text-neutral-600" strokeWidth={2} />
-          {notificationCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-              {notificationCount > 9 ? '9+' : notificationCount}
-            </span>
-          )}
-        </button>
-
-        {/* Mobile search button */}
-        <button 
-          className="sm:hidden p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
-          onClick={() => {
-            const searchBar = document.querySelector('.mobile-search')
-            searchBar?.classList.toggle('hidden')
-          }}
-        >
-          <Search size={18} className="text-neutral-600" />
-        </button>
-      </div>
-
-      {/* Mobile Search Bar (Expandable) */}
-      <div className="mobile-search hidden absolute top-14 left-0 right-0 bg-white border-b border-neutral-200 p-3 sm:hidden">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" size={16} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Buscar tareas..."
-            className="w-full pl-9 pr-8 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => onSearchChange('')}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-neutral-200 rounded transition-colors"
-            >
-              <X size={14} className="text-neutral-500" />
-            </button>
-          )}
-        </div>
-      </div>
-    </header>
+    </div>
   )
 }
 
 export default TopBar
+

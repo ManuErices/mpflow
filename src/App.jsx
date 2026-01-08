@@ -48,7 +48,9 @@ function MainApp({ user }) {
   const [teamMembers, setTeamMembers] = useState([])
   const [notifications, setNotifications] = useState([])
   const [toasts, setToasts] = useState([])
+  const [selectedMember, setSelectedMember] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+
   
   // Estados para modales
   const [showProjectModal, setShowProjectModal] = useState(false)
@@ -390,25 +392,33 @@ function MainApp({ user }) {
     return filtered
   }
 
-  const getSearchedTasks = () => {
+    const getSearchedTasks = () => {
     const filteredByProject = getFilteredTasks()
-    
-    if (!searchQuery.trim()) return filteredByProject
-
     const query = searchQuery.toLowerCase()
-    const searched = {}
-    
+
+    const result = {}
+
     Object.keys(filteredByProject).forEach(status => {
-      searched[status] = filteredByProject[status].filter(task => 
-        task.title.toLowerCase().includes(query) ||
-        task.description?.toLowerCase().includes(query) ||
-        task.assignee?.toLowerCase().includes(query) ||
-        task.tags?.some(tag => tag.toLowerCase().includes(query))
-      )
+      result[status] = filteredByProject[status]
+        .filter(task => {
+          // 🔍 Búsqueda por texto
+          if (!query) return true
+          return (
+            task.title?.toLowerCase().includes(query) ||
+            task.description?.toLowerCase().includes(query) ||
+            task.tags?.some(tag => tag.toLowerCase().includes(query))
+          )
+        })
+        .filter(task => {
+          // 👤 Filtro por miembro
+          if (!selectedMember) return true
+          return task.assignee === selectedMember.name
+        })
     })
-    
-    return searched
+
+    return result
   }
+
 
   const unreadNotificationCount = notifications.filter(n => !n.read).length
 
