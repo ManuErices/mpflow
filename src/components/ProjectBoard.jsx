@@ -177,7 +177,7 @@ function ProjectBoard({ projects, selectedProject, tasks = {}, onEditTask, onDel
                     <DraggableTask 
                       task={task}
                       onEdit={onEditTask}
-                      onDelete={onDeleteTask}
+                      onDelete={onDeleteTask}  // ← Debe pasar la función correcta
                     />
                     {isLocked && (
                       <div className="absolute top-2 right-2 bg-neutral-900/80 text-white p-1 rounded">

@@ -260,21 +260,31 @@ function MainApp({ user }) {
   }
 
   const confirmDeleteTask = async () => {
-    if (!deletingItem || deletingItem.type !== 'task') return
-
-    const task = deletingItem.data
-    
-    try {
-      await deleteTask(task.id)
-      showToast('Tarea eliminada correctamente')
-      addNotification('Tarea eliminada', `"${task.title}" ha sido eliminada`, 'task')
-    } catch (error) {
-      console.error('Error al eliminar tarea:', error)
-      showToast('Error al eliminar tarea', 'error')
-    }
-    
+  if (!deletingItem || deletingItem.type !== 'task') return
+  
+  const task = deletingItem.data
+  
+  // Verificar que task y task.id existen
+  if (!task || !task.id) {
+    console.error('Error: tarea sin ID', task)
+    showToast('Error: tarea inválida', 'error')
     setDeletingItem(null)
+    setShowDeleteModal(false)
+    return
   }
+  
+  try {
+    await deleteTask(task.id)
+    showToast('Tarea eliminada correctamente')
+    addNotification('Tarea eliminada', `"${task.title}" ha sido eliminada`, 'task')
+  } catch (error) {
+    console.error('Error al eliminar tarea:', error)
+    showToast('Error al eliminar tarea: ' + error.message, 'error')
+  }
+  
+  setDeletingItem(null)
+  setShowDeleteModal(false)
+}
 
   const moveTask = async (taskId, fromStatus, toStatus) => {
     const task = tasks[fromStatus]?.find(t => t.id === taskId)
@@ -352,16 +362,19 @@ function MainApp({ user }) {
     }
   }
 
-  const getDeleteMessage = () => {
-    if (!deletingItem) return ''
+    const getDeleteMessage = () => {
+    if (!deletingItem || !deletingItem.data) return ''
     
     if (deletingItem.type === 'project') {
-      const taskCount = Object.values(tasks).flat().filter(t => t.projectId === deletingItem.data.id).length
-      return `¿Estás seguro de que deseas eliminar "${deletingItem.data.name}"? ${taskCount > 0 ? `Se eliminarán también ${taskCount} tareas asociadas.` : ''} Esta acción no se puede deshacer.`
+      const project = deletingItem.data
+      const taskCount = Object.values(tasks).flat().filter(t => t.projectId === project.id).length
+      return `¿Estás seguro de que deseas eliminar "${project.name}"? ${taskCount > 0 ? `Se eliminarán también ${taskCount} tareas asociadas.` : ''} Esta acción no se puede deshacer.`
     } else if (deletingItem.type === 'task') {
-      return `¿Estás seguro de que deseas eliminar la tarea "${deletingItem.data.title}"? Esta acción no se puede deshacer.`
+      const task = deletingItem.data
+      return `¿Estás seguro de que deseas eliminar la tarea "${task.title || 'Sin título'}"? Esta acción no se puede deshacer.`
     } else if (deletingItem.type === 'member') {
-      return `¿Estás seguro de que deseas eliminar a "${deletingItem.data.name}" del equipo? Esta acción no se puede deshacer.`
+      const member = deletingItem.data
+      return `¿Estás seguro de que deseas eliminar a "${member.name || 'Sin nombre'}" del equipo? Esta acción no se puede deshacer.`
     }
     return ''
   }

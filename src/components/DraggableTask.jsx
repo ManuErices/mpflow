@@ -66,15 +66,17 @@ function DraggableTask({ task, onEdit, onDelete, onMove, availableStatuses }) {
           <p className="text-xs text-neutral-600 line-clamp-2 leading-relaxed">{task.description}</p>
         </div>
         <div className="relative">
-          <button 
-            onClick={(e) => {
-              e.stopPropagation()
-              setShowMenu(!showMenu)
-            }}
-            className="p-1 hover:bg-neutral-100 rounded transition-colors opacity-0 group-hover:opacity-100"
-          >
-            <MoreVertical size={14} className="text-neutral-400" />
-          </button>
+          <button
+        onClick={(e) => {
+          e.stopPropagation()
+          setShowMenu(false)
+          onDelete(task)  // ← IMPORTANTE: debe pasar 'task'
+        }}
+        className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 transition-colors"
+      >
+        <Trash2 size={12} />
+        <span>Eliminar</span>
+      </button>
 
           {/* Menu desplegable */}
           {showMenu && (
