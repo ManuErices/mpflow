@@ -1,4 +1,4 @@
-import { MoreVertical, Calendar, CheckSquare, Edit2, Trash2, MoveRight, UserCheck, Clock } from 'lucide-react'
+import { MoreVertical, Calendar, CheckSquare, Edit2, Trash2, MoveRight, Paperclip, Clock, UserCheck } from 'lucide-react'
 import { useState } from 'react'
 
 function TaskCard({ task, onEdit, onDelete, onMove, availableStatuses }) {
@@ -158,18 +158,22 @@ function TaskCard({ task, onEdit, onDelete, onMove, availableStatuses }) {
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-2.5 border-t border-neutral-100">
-        <div className="flex items-center space-x-1 text-[10px] text-neutral-500 font-medium">
-          <Calendar size={11} />
-          <span>
-            {task.dueDate 
-              ? new Date(task.dueDate).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })
-              : 'Sin fecha'}
-          </span>
+        <div className="flex items-center space-x-2 text-[10px] text-neutral-500 font-medium">
+          <div className="flex items-center space-x-1">
+            <Calendar size={11} />
+            <span>{task.dueDate ? new Date(task.dueDate).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }) : 'Sin fecha'}</span>
+          </div>
           {task.dueTime && (
-            <>
-              <Clock size={10} className="ml-1" />
+            <div className="flex items-center space-x-1">
+              <Clock size={10} />
               <span>{task.dueTime}</span>
-            </>
+            </div>
+          )}
+          {task.attachments && task.attachments.length > 0 && (
+            <div className="flex items-center space-x-1 text-blue-600">
+              <Paperclip size={11} />
+              <span className="font-semibold">{task.attachments.length}</span>
+            </div>
           )}
         </div>
         
@@ -177,10 +181,10 @@ function TaskCard({ task, onEdit, onDelete, onMove, availableStatuses }) {
           <div className="flex items-center space-x-1.5">
             <div className="w-5 h-5 bg-gradient-to-br from-primary-600 to-primary-700 rounded-full flex items-center justify-center shadow-sm">
               <span className="text-white text-[9px] font-semibold">
-                {task.assignee.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                {task.assignee.split(' ').map(n => n[0]).join('')}
               </span>
             </div>
-            <span className="text-[10px] text-neutral-600 font-medium truncate max-w-[100px]">{task.assignee}</span>
+            <span className="text-[10px] text-neutral-600 font-medium">{task.assignee}</span>
           </div>
         )}
       </div>

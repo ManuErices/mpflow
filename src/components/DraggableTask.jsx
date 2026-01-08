@@ -194,18 +194,26 @@ function DraggableTask({ task, onEdit, onDelete, onMove, availableStatuses, onOp
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-2.5 border-t border-neutral-100 ml-4">
-        <div className="flex items-center space-x-1 text-[10px] text-neutral-500 font-medium">
-          <Calendar size={11} />
-          <span>
-            {task.dueDate 
-              ? new Date(task.dueDate).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }) 
-              : 'Sin fecha'}
-          </span>
+        <div className="flex items-center space-x-2 text-[10px] text-neutral-500 font-medium">
+          <div className="flex items-center space-x-1">
+            <Calendar size={11} />
+            <span>
+              {task.dueDate 
+                ? new Date(task.dueDate).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }) 
+                : 'Sin fecha'}
+            </span>
+          </div>
           {task.dueTime && (
-            <>
-              <Clock size={10} className="ml-1" />
+            <div className="flex items-center space-x-1">
+              <Clock size={10} />
               <span>{task.dueTime}</span>
-            </>
+            </div>
+          )}
+          {task.attachments && task.attachments.length > 0 && (
+            <div className="flex items-center space-x-1 text-blue-600">
+              <Paperclip size={11} />
+              <span className="font-semibold">{task.attachments.length}</span>
+            </div>
           )}
         </div>
         
