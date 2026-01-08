@@ -189,6 +189,7 @@ function Sidebar({ isOpen, onToggle, projects, selectedProject, onSelectProject,
         </div>
       )}
     </aside>
+    </>
   )
 }
 
