@@ -104,7 +104,7 @@ function AuthScreen() {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Juan Pérez"
+                    placeholder="Pedro Fernández"
                     required={!isLogin}
                     className="w-full pl-10 pr-4 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
                   />
