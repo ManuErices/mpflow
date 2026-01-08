@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from './contexts/AuthContext'
+import AuthScreen from './components/AuthScreen'
 import Sidebar from './components/Sidebar'
 import Dashboard from './components/Dashboard'
 import ProjectBoard from './components/ProjectBoard'
@@ -12,6 +14,12 @@ import MemberModal from './components/MemberModal'
 import ConfirmModal from './components/ConfirmModal'
 import NotificationPanel from './components/NotificationPanel'
 import { ToastContainer } from './components/Toast'
+import { 
+  getProjects, addProject, updateProject, deleteProject,
+  getTasks, addTask, updateTask, deleteTask,
+  getMembers, addMember, updateMember, deleteMember,
+  subscribeToProjects, subscribeToTasks, subscribeToMembers
+} from './utils/firestoreHelper'
 
 // Función para generar ID único
 const generateId = () => {
@@ -19,6 +27,19 @@ const generateId = () => {
 }
 
 function App() {
+  const { user } = useAuth()
+  
+  // Si no hay usuario, mostrar pantalla de login
+  if (!user) {
+    return <AuthScreen />
+  }
+  
+  // Si hay usuario, mostrar la app
+  return <MainApp user={user} />
+}
+
+function MainApp({ user }) {
+  const { logout } = useAuth()
   const [currentView, setCurrentView] = useState('dashboard')
   const [selectedProject, setSelectedProject] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -41,128 +62,58 @@ function App() {
   const [editingMember, setEditingMember] = useState(null)
   const [deletingItem, setDeletingItem] = useState(null)
 
-  // Cargar datos desde localStorage al iniciar
+  // Cargar datos desde Firestore con suscripciones en tiempo real
   useEffect(() => {
-    const savedProjects = localStorage.getItem('mpflow_projects')
-    const savedTasks = localStorage.getItem('mpflow_tasks')
-    const savedMembers = localStorage.getItem('mpflow_members')
-    const savedNotifications = localStorage.getItem('mpflow_notifications')
-    
-    if (savedProjects) {
+    if (!user) return
+
+    let unsubProjects, unsubTasks, unsubMembers
+
+    const setupSubscriptions = async () => {
       try {
-        const parsedProjects = JSON.parse(savedProjects)
-        setProjects(parsedProjects)
-        if (parsedProjects.length > 0 && !selectedProject) {
-          setSelectedProject(parsedProjects[0])
-        }
+        // Suscribirse a proyectos en tiempo real
+        unsubProjects = subscribeToProjects(user.uid, (projectsData) => {
+          setProjects(projectsData)
+          if (projectsData.length > 0 && !selectedProject) {
+            setSelectedProject(projectsData[0])
+          }
+        })
+
+        // Suscribirse a tareas en tiempo real
+        unsubTasks = subscribeToTasks(user.uid, (tasksData) => {
+          const groupedTasks = {
+            'todo': [],
+            'in-progress': [],
+            'review': [],
+            'done': []
+          }
+          tasksData.forEach(task => {
+            if (groupedTasks[task.status]) {
+              groupedTasks[task.status].push(task)
+            }
+          })
+          setTasks(groupedTasks)
+        })
+
+        // Suscribirse a miembros en tiempo real
+        unsubMembers = subscribeToMembers(user.uid, (membersData) => {
+          setTeamMembers(membersData)
+        })
+
       } catch (error) {
-        console.error('Error al cargar proyectos:', error)
-        initializeDefaultData()
-      }
-    } else {
-      initializeDefaultData()
-    }
-
-    if (savedTasks) {
-      try {
-        setTasks(JSON.parse(savedTasks))
-      } catch (error) {
-        console.error('Error al cargar tareas:', error)
+        console.error('Error al configurar suscripciones:', error)
+        showToast('Error al cargar datos', 'error')
       }
     }
 
-    if (savedMembers) {
-      try {
-        setTeamMembers(JSON.parse(savedMembers))
-      } catch (error) {
-        console.error('Error al cargar miembros:', error)
-      }
+    setupSubscriptions()
+
+    // Cleanup: cancelar suscripciones al desmontar
+    return () => {
+      if (unsubProjects) unsubProjects()
+      if (unsubTasks) unsubTasks()
+      if (unsubMembers) unsubMembers()
     }
-
-    if (savedNotifications) {
-      try {
-        setNotifications(JSON.parse(savedNotifications))
-      } catch (error) {
-        console.error('Error al cargar notificaciones:', error)
-      }
-    }
-  }, [])
-
-  // Guardar en localStorage
-  useEffect(() => {
-    if (projects.length > 0) {
-      localStorage.setItem('mpflow_projects', JSON.stringify(projects))
-    }
-  }, [projects])
-
-  useEffect(() => {
-    if (Object.keys(tasks).length > 0) {
-      localStorage.setItem('mpflow_tasks', JSON.stringify(tasks))
-    }
-  }, [tasks])
-
-  useEffect(() => {
-    if (teamMembers.length > 0) {
-      localStorage.setItem('mpflow_members', JSON.stringify(teamMembers))
-    }
-  }, [teamMembers])
-
-  useEffect(() => {
-    if (notifications.length > 0) {
-      localStorage.setItem('mpflow_notifications', JSON.stringify(notifications))
-    }
-  }, [notifications])
-
-  const initializeDefaultData = () => {
-    const defaultProjects = [
-      {
-        id: generateId(),
-        name: 'Edificio Residencial Centro',
-        status: 'En Progreso',
-        color: '#9333ea',
-        description: 'Construcción de edificio residencial de 8 pisos'
-      },
-      {
-        id: generateId(),
-        name: 'Remodelación Oficinas',
-        status: 'En Progreso',
-        color: '#3b82f6',
-        description: 'Remodelación integral de oficinas corporativas'
-      }
-    ]
-    setProjects(defaultProjects)
-    setSelectedProject(defaultProjects[0])
-
-    const exampleTasks = {
-      'todo': [
-        {
-          id: generateId(),
-          title: 'Preparación del terreno',
-          description: 'Limpieza y nivelación del área de construcción',
-          priority: 'high',
-          assignee: 'Carlos M.',
-          dueDate: '2026-01-15',
-          tags: ['Fundación', 'Urgente'],
-          projectId: defaultProjects[0].id,
-          status: 'todo',
-          checklist: { completed: 2, total: 5, items: [
-            { text: 'Marcar límites', completed: true },
-            { text: 'Limpiar maleza', completed: true },
-            { text: 'Nivelar terreno', completed: false },
-            { text: 'Compactar suelo', completed: false },
-            { text: 'Verificar pendientes', completed: false }
-          ]}
-        }
-      ],
-      'in-progress': [],
-      'review': [],
-      'done': []
-    }
-    setTasks(exampleTasks)
-
-    // Notificaciones de ejemplo
-    addNotification('Bienvenido a MPFlow', 'Sistema de gestión profesional para MPF Ingeniería Civil', 'project')
-  }
+  }, [user])
 
   // Sistema de Toast
   const showToast = (message, type = 'success', duration = 3000) => {
@@ -215,49 +166,55 @@ function App() {
     setShowDeleteModal(true)
   }
 
-  const handleSaveProject = (projectData) => {
-    if (editingProject) {
-      setProjects(prevProjects =>
-        prevProjects.map(p =>
-          p.id === editingProject.id ? { ...p, ...projectData } : p
-        )
-      )
-      if (selectedProject?.id === editingProject.id) {
-        setSelectedProject({ ...selectedProject, ...projectData })
+  const handleSaveProject = async (projectData) => {
+    try {
+      if (editingProject) {
+        await updateProject(editingProject.id, projectData)
+        if (selectedProject?.id === editingProject.id) {
+          setSelectedProject({ ...selectedProject, ...projectData })
+        }
+        showToast('Proyecto actualizado correctamente')
+        addNotification('Proyecto actualizado', `"${projectData.name}" ha sido modificado`, 'project')
+      } else {
+        const projectId = await addProject(user.uid, projectData)
+        const newProject = { id: projectId, ...projectData }
+        setSelectedProject(newProject)
+        showToast('Proyecto creado correctamente')
+        addNotification('Nuevo proyecto', `"${projectData.name}" ha sido creado`, 'project')
       }
-      showToast('Proyecto actualizado correctamente')
-      addNotification('Proyecto actualizado', `"${projectData.name}" ha sido modificado`, 'project')
-    } else {
-      const newProject = {
-        id: generateId(),
-        ...projectData,
-      }
-      setProjects(prevProjects => [...prevProjects, newProject])
-      setSelectedProject(newProject)
-      showToast('Proyecto creado correctamente')
-      addNotification('Nuevo proyecto', `"${projectData.name}" ha sido creado`, 'project')
+    } catch (error) {
+      console.error('Error al guardar proyecto:', error)
+      showToast('Error al guardar proyecto', 'error')
     }
   }
 
-  const confirmDeleteProject = () => {
+  const confirmDeleteProject = async () => {
     if (!deletingItem || deletingItem.type !== 'project') return
 
     const project = deletingItem.data
-    setProjects(prevProjects => prevProjects.filter(p => p.id !== project.id))
+    
+    try {
+      // Eliminar proyecto
+      await deleteProject(project.id)
+      
+      // Eliminar todas las tareas del proyecto
+      const projectTasks = Object.values(tasks).flat().filter(t => t.projectId === project.id)
+      for (const task of projectTasks) {
+        await deleteTask(task.id)
+      }
 
-    const newTasks = {}
-    Object.keys(tasks).forEach(status => {
-      newTasks[status] = tasks[status].filter(t => t.projectId !== project.id)
-    })
-    setTasks(newTasks)
+      if (selectedProject?.id === project.id) {
+        const remainingProjects = projects.filter(p => p.id !== project.id)
+        setSelectedProject(remainingProjects.length > 0 ? remainingProjects[0] : null)
+      }
 
-    if (selectedProject?.id === project.id) {
-      const remainingProjects = projects.filter(p => p.id !== project.id)
-      setSelectedProject(remainingProjects.length > 0 ? remainingProjects[0] : null)
+      showToast('Proyecto eliminado correctamente')
+      addNotification('Proyecto eliminado', `"${project.name}" ha sido eliminado`, 'project')
+    } catch (error) {
+      console.error('Error al eliminar proyecto:', error)
+      showToast('Error al eliminar proyecto', 'error')
     }
-
-    showToast('Proyecto eliminado correctamente')
-    addNotification('Proyecto eliminado', `"${project.name}" ha sido eliminado`, 'project')
+    
     setDeletingItem(null)
   }
 
@@ -281,89 +238,59 @@ function App() {
     setShowDeleteModal(true)
   }
 
-  const handleSaveTask = (taskData) => {
-    if (editingTask) {
-      const newTasks = { ...tasks }
-      Object.keys(newTasks).forEach(status => {
-        newTasks[status] = newTasks[status].map(t =>
-          t.id === editingTask.id ? { ...t, ...taskData } : t
-        )
-      })
-      
-      if (taskData.status !== editingTask.status) {
-        newTasks[editingTask.status] = newTasks[editingTask.status].filter(t => t.id !== editingTask.id)
-        newTasks[taskData.status] = [...(newTasks[taskData.status] || []), { ...editingTask, ...taskData }]
+  const handleSaveTask = async (taskData) => {
+    try {
+      if (editingTask) {
+        await updateTask(editingTask.id, taskData)
+        showToast('Tarea actualizada correctamente')
+        addNotification('Tarea actualizada', `"${taskData.title}" ha sido modificada`, 'task')
+      } else {
+        await addTask(user.uid, taskData)
+        showToast('Tarea creada correctamente')
+        addNotification('Nueva tarea', `"${taskData.title}" ha sido creada`, 'task')
+        
+        if (taskData.assignee) {
+          addNotification('Tarea asignada', `Se te asignó "${taskData.title}"`, 'assignment')
+        }
       }
-      
-      setTasks(newTasks)
-      updateProjectStats()
-      showToast('Tarea actualizada correctamente')
-      addNotification('Tarea actualizada', `"${taskData.title}" ha sido modificada`, 'task')
-    } else {
-      const newTask = {
-        id: generateId(),
-        ...taskData,
-      }
-      
-      setTasks(prev => ({
-        ...prev,
-        [taskData.status]: [...(prev[taskData.status] || []), newTask]
-      }))
-      updateProjectStats()
-      showToast('Tarea creada correctamente')
-      addNotification('Nueva tarea', `"${taskData.title}" ha sido creada`, 'task')
-      
-      if (taskData.assignee) {
-        addNotification('Tarea asignada', `Se te asignó "${taskData.title}"`, 'assignment')
-      }
+    } catch (error) {
+      console.error('Error al guardar tarea:', error)
+      showToast('Error al guardar tarea', 'error')
     }
   }
 
-  const confirmDeleteTask = () => {
+  const confirmDeleteTask = async () => {
     if (!deletingItem || deletingItem.type !== 'task') return
 
     const task = deletingItem.data
-    const newTasks = { ...tasks }
-    Object.keys(newTasks).forEach(status => {
-      newTasks[status] = newTasks[status].filter(t => t.id !== task.id)
-    })
-    setTasks(newTasks)
-    updateProjectStats()
-    showToast('Tarea eliminada correctamente')
-    addNotification('Tarea eliminada', `"${task.title}" ha sido eliminada`, 'task')
+    
+    try {
+      await deleteTask(task.id)
+      showToast('Tarea eliminada correctamente')
+      addNotification('Tarea eliminada', `"${task.title}" ha sido eliminada`, 'task')
+    } catch (error) {
+      console.error('Error al eliminar tarea:', error)
+      showToast('Error al eliminar tarea', 'error')
+    }
+    
     setDeletingItem(null)
   }
 
-  const moveTask = (taskId, fromStatus, toStatus) => {
+  const moveTask = async (taskId, fromStatus, toStatus) => {
     const task = tasks[fromStatus]?.find(t => t.id === taskId)
     if (!task) return
 
-    setTasks(prev => ({
-      ...prev,
-      [fromStatus]: prev[fromStatus].filter(t => t.id !== taskId),
-      [toStatus]: [...(prev[toStatus] || []), { ...task, status: toStatus }]
-    }))
-    updateProjectStats()
-    showToast(`Tarea movida a ${toStatus === 'done' ? 'Completado' : toStatus}`)
-    
-    if (toStatus === 'done') {
-      addNotification('Tarea completada', `"${task.title}" ha sido completada`, 'task')
-    }
-  }
-
-  const updateProjectStats = () => {
-    const updatedProjects = projects.map(project => {
-      const projectTasks = Object.values(tasks).flat().filter(t => t.projectId === project.id)
-      const completedTasks = projectTasks.filter(t => t.status === 'done').length
+    try {
+      await updateTask(taskId, { status: toStatus })
+      showToast(`Tarea movida a ${toStatus === 'done' ? 'Completado' : toStatus}`)
       
-      return {
-        ...project,
-        tasks: projectTasks.length,
-        completedTasks,
-        progress: projectTasks.length > 0 ? Math.round((completedTasks / projectTasks.length) * 100) : 0
+      if (toStatus === 'done') {
+        addNotification('Tarea completada', `"${task.title}" ha sido completada`, 'task')
       }
-    })
-    setProjects(updatedProjects)
+    } catch (error) {
+      console.error('Error al mover tarea:', error)
+      showToast('Error al mover tarea', 'error')
+    }
   }
 
   // ===== FUNCIONES CRUD MIEMBROS =====
@@ -382,30 +309,36 @@ function App() {
     setShowDeleteModal(true)
   }
 
-  const handleSaveMember = (memberData) => {
-    if (editingMember) {
-      setTeamMembers(prev => prev.map(m =>
-        m.id === editingMember.id ? { ...m, ...memberData } : m
-      ))
-      showToast('Miembro actualizado correctamente')
-    } else {
-      const newMember = {
-        id: generateId(),
-        ...memberData
+  const handleSaveMember = async (memberData) => {
+    try {
+      if (editingMember) {
+        await updateMember(editingMember.id, memberData)
+        showToast('Miembro actualizado correctamente')
+      } else {
+        await addMember(user.uid, memberData)
+        showToast('Miembro agregado correctamente')
+        addNotification('Nuevo miembro', `${memberData.name} se unió al equipo`, 'assignment')
       }
-      setTeamMembers(prev => [...prev, newMember])
-      showToast('Miembro agregado correctamente')
-      addNotification('Nuevo miembro', `${memberData.name} se unió al equipo`, 'assignment')
+    } catch (error) {
+      console.error('Error al guardar miembro:', error)
+      showToast('Error al guardar miembro', 'error')
     }
   }
 
-  const confirmDeleteMember = () => {
+  const confirmDeleteMember = async () => {
     if (!deletingItem || deletingItem.type !== 'member') return
 
     const member = deletingItem.data
-    setTeamMembers(prev => prev.filter(m => m.id !== member.id))
-    showToast('Miembro eliminado correctamente')
-    addNotification('Miembro removido', `${member.name} fue removido del equipo`, 'assignment')
+    
+    try {
+      await deleteMember(member.id)
+      showToast('Miembro eliminado correctamente')
+      addNotification('Miembro removido', `${member.name} fue removido del equipo`, 'assignment')
+    } catch (error) {
+      console.error('Error al eliminar miembro:', error)
+      showToast('Error al eliminar miembro', 'error')
+    }
+    
     setDeletingItem(null)
   }
 
@@ -479,6 +412,8 @@ function App() {
         onDeleteProject={handleDeleteProject}
         currentView={currentView}
         onViewChange={setCurrentView}
+        user={user}
+        onLogout={logout}
       />
 
       <div className="flex-1 flex flex-col">
@@ -501,7 +436,7 @@ function App() {
               teamMembers={teamMembers}
             />
           )}
-
+          
           {currentView === 'board' && (
             <ProjectBoard 
               projects={projects}

@@ -1,7 +1,7 @@
-import { Home, Folder, Users, Calendar, Settings, Plus, ChevronLeft, ChevronRight, Edit2, Trash2, MoreVertical, BarChart3 } from 'lucide-react'
+import { Home, Folder, Users, Calendar, Settings, Plus, ChevronLeft, ChevronRight, Edit2, Trash2, MoreVertical, BarChart3, LogOut } from 'lucide-react'
 import { useState } from 'react'
 
-function Sidebar({ isOpen, onToggle, projects, selectedProject, onSelectProject, onAddProject, onEditProject, onDeleteProject, currentView, onViewChange }) {
+function Sidebar({ isOpen, onToggle, projects, selectedProject, onSelectProject, onAddProject, onEditProject, onDeleteProject, currentView, onViewChange, user, onLogout }) {
   const [showProjectMenu, setShowProjectMenu] = useState(null)
 
   const menuItems = [
@@ -174,18 +174,30 @@ function Sidebar({ isOpen, onToggle, projects, selectedProject, onSelectProject,
         )}
       </nav>
 
-      {/* User Profile */}
+      {/* User Profile con Logout */}
       {isOpen && (
-        <div className="p-3 border-t border-neutral-100">
+        <div className="p-3 border-t border-neutral-100 space-y-2">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-white font-semibold text-xs">JD</span>
+              <span className="text-white font-semibold text-xs">
+                {user?.displayName ? user.displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U'}
+              </span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold text-neutral-900 truncate">Juan Díaz</div>
-              <div className="text-[10px] text-neutral-500">Admin</div>
+              <div className="text-xs font-semibold text-neutral-900 truncate">
+                {user?.displayName || user?.email || 'Usuario'}
+              </div>
+              <div className="text-[10px] text-neutral-500">MPF Ingeniería</div>
             </div>
           </div>
+          
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
+          >
+            <LogOut size={16} strokeWidth={2} />
+            <span>Cerrar Sesión</span>
+          </button>
         </div>
       )}
     </aside>

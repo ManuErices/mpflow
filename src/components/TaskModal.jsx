@@ -1,7 +1,11 @@
 import { X, Calendar as CalendarIcon, User, Flag, CheckSquare, Plus, Trash2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { useAuth } from '../contexts/AuthContext'
+import FileAttachments from './FileAttachments'
+import { uploadMultipleFiles, deleteFile } from '../utils/storageHelper'
 
 function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) {
+  const { user } = useAuth()
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -11,12 +15,14 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
     tags: [],
     projectId: currentProject?.id || '',
     status: 'todo',
-    checklist: []
+    checklist: [],
+    attachments: []
   })
 
   const [newTag, setNewTag] = useState('')
   const [newChecklistItem, setNewChecklistItem] = useState('')
   const [errors, setErrors] = useState({})
+  const [attachments, setAttachments] = useState([])
 
   useEffect(() => {
     if (task) {
@@ -29,8 +35,10 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
         tags: task.tags || [],
         projectId: task.projectId || currentProject?.id || '',
         status: task.status || 'todo',
-        checklist: task.checklist?.items || []
+        checklist: task.checklist?.items || [],
+        attachments: task.attachments || []
       })
+      setAttachments(task.attachments || [])
     } else {
       setFormData({
         title: '',
@@ -41,24 +49,103 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
         tags: [],
         projectId: currentProject?.id || '',
         status: 'todo',
-        checklist: []
+        checklist: [],
+        attachments: []
       })
+      setAttachments([])
     }
     setErrors({})
   }, [task, isOpen, currentProject])
 
   const priorityOptions = [
-    { value: 'low', label: 'Baja', color: 'bg-emerald-500' },
-    { value: 'medium', label: 'Media', color: 'bg-amber-500' },
-    { value: 'high', label: 'Alta', color: 'bg-red-500' }
+    { value: 'low', label: 'Baja', color: 'bg-blue-100 text-blue-700' },
+    { value: 'medium', label: 'Media', color: 'bg-yellow-100 text-yellow-700' },
+    { value: 'high', label: 'Alta', color: 'bg-red-100 text-red-700' }
   ]
 
   const statusOptions = [
     { value: 'todo', label: 'Por Hacer' },
     { value: 'in-progress', label: 'En Progreso' },
-    { value: 'review', label: 'Revisión' },
+    { value: 'review', label: 'En Revisión' },
     { value: 'done', label: 'Completado' }
   ]
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }))
+    }
+  }
+
+  const handleAddTag = () => {
+    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, newTag.trim()]
+      }))
+      setNewTag('')
+    }
+  }
+
+  const handleRemoveTag = (tagToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }))
+  }
+
+  const handleAddChecklistItem = () => {
+    if (newChecklistItem.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        checklist: [...prev.checklist, { text: newChecklistItem.trim(), completed: false }]
+      }))
+      setNewChecklistItem('')
+    }
+  }
+
+  const handleToggleChecklistItem = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      checklist: prev.checklist.map((item, i) =>
+        i === index ? { ...item, completed: !item.completed } : item
+      )
+    }))
+  }
+
+  const handleRemoveChecklistItem = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      checklist: prev.checklist.filter((_, i) => i !== index)
+    }))
+  }
+
+  const handleUploadFiles = async (files) => {
+    try {
+      const uploadedFiles = await uploadMultipleFiles(files, user.uid)
+      setAttachments(prev => [...prev, ...uploadedFiles])
+    } catch (error) {
+      console.error('Error al subir archivos:', error)
+      alert('Error al subir archivos. Por favor intenta de nuevo.')
+    }
+  }
+
+  const handleDeleteFile = async (fileId) => {
+    try {
+      const file = attachments.find(f => f.id === fileId)
+      if (!file) return
+      
+      await deleteFile(file.path)
+      setAttachments(prev => prev.filter(f => f.id !== fileId))
+    } catch (error) {
+      console.error('Error al eliminar archivo:', error)
+      alert('Error al eliminar archivo')
+    }
+  }
 
   const validate = () => {
     const newErrors = {}
@@ -66,7 +153,7 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
     if (!formData.title.trim()) {
       newErrors.title = 'El título es obligatorio'
     }
-
+    
     if (!formData.projectId) {
       newErrors.projectId = 'Debes seleccionar un proyecto'
     }
@@ -78,72 +165,23 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
   const handleSubmit = (e) => {
     e.preventDefault()
     
-    if (!validate()) return
+    if (!validate()) {
+      return
+    }
 
-    const taskData = {
+    const checklistData = {
+      items: formData.checklist,
+      completed: formData.checklist.filter(item => item.completed).length,
+      total: formData.checklist.length
+    }
+
+    onSave({
       ...formData,
-      title: formData.title.trim(),
-      description: formData.description.trim(),
-      checklist: formData.checklist.length > 0 ? {
-        completed: formData.checklist.filter(item => item.completed).length,
-        total: formData.checklist.length,
-        items: formData.checklist
-      } : null
-    }
-
-    onSave(taskData)
+      checklist: checklistData,
+      attachments
+    })
+    
     onClose()
-  }
-
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: undefined }))
-    }
-  }
-
-  const addTag = () => {
-    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, newTag.trim()]
-      }))
-      setNewTag('')
-    }
-  }
-
-  const removeTag = (tagToRemove) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }))
-  }
-
-  const addChecklistItem = () => {
-    if (newChecklistItem.trim()) {
-      setFormData(prev => ({
-        ...prev,
-        checklist: [...prev.checklist, { text: newChecklistItem.trim(), completed: false }]
-      }))
-      setNewChecklistItem('')
-    }
-  }
-
-  const toggleChecklistItem = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      checklist: prev.checklist.map((item, i) => 
-        i === index ? { ...item, completed: !item.completed } : item
-      )
-    }))
-  }
-
-  const removeChecklistItem = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      checklist: prev.checklist.filter((_, i) => i !== index)
-    }))
   }
 
   if (!isOpen) return null
@@ -153,34 +191,37 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
       <div className="bg-white rounded-xl shadow-large w-full max-w-2xl my-8 animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-neutral-200">
-          <h2 className="text-lg font-semibold text-neutral-900">
+          <h2 className="text-xl font-bold text-neutral-900">
             {task ? 'Editar Tarea' : 'Nueva Tarea'}
           </h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors">
-            <X size={18} className="text-neutral-500" />
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
+          >
+            <X size={20} className="text-neutral-500" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
           {/* Título */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Título *
+              Título <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               name="title"
               value={formData.title}
-              onChange={handleChange}
-              placeholder="Ej: Instalación eléctrica primer piso"
-              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-all ${
-                errors.title
-                  ? 'border-red-300 focus:ring-red-500'
-                  : 'border-neutral-300 focus:ring-primary-500'
+              onChange={handleInputChange}
+              placeholder="Ej: Instalar columnas de soporte"
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all ${
+                errors.title ? 'border-red-500' : 'border-neutral-300'
               }`}
             />
-            {errors.title && <p className="text-xs text-red-600 mt-1">{errors.title}</p>}
+            {errors.title && (
+              <p className="mt-1 text-sm text-red-600">{errors.title}</p>
+            )}
           </div>
 
           {/* Descripción */}
@@ -191,35 +232,37 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
             <textarea
               name="description"
               value={formData.description}
-              onChange={handleChange}
-              placeholder="Describe los detalles de la tarea..."
+              onChange={handleInputChange}
               rows={3}
-              className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all resize-none"
+              placeholder="Describe los detalles de la tarea..."
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all resize-none"
             />
           </div>
 
           {/* Proyecto y Estado */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                Proyecto *
+                Proyecto <span className="text-red-500">*</span>
               </label>
               <select
                 name="projectId"
                 value={formData.projectId}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-all ${
-                  errors.projectId
-                    ? 'border-red-300 focus:ring-red-500'
-                    : 'border-neutral-300 focus:ring-primary-500'
+                onChange={handleInputChange}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all ${
+                  errors.projectId ? 'border-red-500' : 'border-neutral-300'
                 }`}
               >
-                <option value="">Seleccionar proyecto</option>
+                <option value="">Seleccionar...</option>
                 {projects.map(project => (
-                  <option key={project.id} value={project.id}>{project.name}</option>
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
                 ))}
               </select>
-              {errors.projectId && <p className="text-xs text-red-600 mt-1">{errors.projectId}</p>}
+              {errors.projectId && (
+                <p className="mt-1 text-sm text-red-600">{errors.projectId}</p>
+              )}
             </div>
 
             <div>
@@ -229,68 +272,67 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
               <select
                 name="status"
                 value={formData.status}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
               >
-                {statusOptions.map(status => (
-                  <option key={status.value} value={status.value}>{status.label}</option>
+                {statusOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* Prioridad y Asignado */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Prioridad, Asignado y Fecha */}
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                <Flag size={14} className="inline mr-1" />
                 Prioridad
               </label>
-              <div className="flex gap-2">
-                {priorityOptions.map(priority => (
-                  <button
-                    key={priority.value}
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, priority: priority.value }))}
-                    className={`flex-1 flex items-center justify-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      formData.priority === priority.value
-                        ? 'bg-neutral-900 text-white'
-                        : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full ${priority.color}`}></span>
-                    <span>{priority.label}</span>
-                  </button>
+              <select
+                name="priority"
+                value={formData.priority}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+              >
+                {priorityOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
                 ))}
-              </div>
+              </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                <User size={14} className="inline mr-1" />
                 Asignado a
               </label>
               <input
                 type="text"
                 name="assignee"
                 value={formData.assignee}
-                onChange={handleChange}
-                placeholder="Nombre de la persona"
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                onChange={handleInputChange}
+                placeholder="Nombre"
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
               />
             </div>
-          </div>
 
-          {/* Fecha */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Fecha de vencimiento
-            </label>
-            <input
-              type="date"
-              name="dueDate"
-              value={formData.dueDate}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-            />
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                <CalendarIcon size={14} className="inline mr-1" />
+                Fecha límite
+              </label>
+              <input
+                type="date"
+                name="dueDate"
+                value={formData.dueDate}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+              />
+            </div>
           </div>
 
           {/* Etiquetas */}
@@ -298,19 +340,19 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
             <label className="block text-sm font-medium text-neutral-700 mb-1.5">
               Etiquetas
             </label>
-            <div className="flex gap-2 mb-2">
+            <div className="flex space-x-2 mb-2">
               <input
                 type="text"
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
                 placeholder="Agregar etiqueta..."
-                className="flex-1 px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                className="flex-1 px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all text-sm"
               />
               <button
                 type="button"
-                onClick={addTag}
-                className="px-3 py-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
+                onClick={handleAddTag}
+                className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm"
               >
                 <Plus size={16} />
               </button>
@@ -320,10 +362,14 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
                 {formData.tags.map((tag, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center space-x-1 text-xs px-2 py-1 bg-neutral-100 text-neutral-700 rounded-md"
+                    className="inline-flex items-center space-x-1 px-2.5 py-1 bg-primary-50 text-primary-700 rounded-full text-xs font-medium"
                   >
                     <span>{tag}</span>
-                    <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-600">
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(tag)}
+                      className="hover:text-primary-900"
+                    >
                       <X size={12} />
                     </button>
                   </span>
@@ -332,47 +378,51 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
             )}
           </div>
 
-          {/* Checklist */}
+          {/* Lista de verificación */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+              <CheckSquare size={14} className="inline mr-1" />
               Lista de verificación
             </label>
-            <div className="flex gap-2 mb-2">
+            <div className="flex space-x-2 mb-2">
               <input
                 type="text"
                 value={newChecklistItem}
                 onChange={(e) => setNewChecklistItem(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addChecklistItem())}
-                placeholder="Agregar subtarea..."
-                className="flex-1 px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddChecklistItem())}
+                placeholder="Agregar elemento..."
+                className="flex-1 px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all text-sm"
               />
               <button
                 type="button"
-                onClick={addChecklistItem}
-                className="px-3 py-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
+                onClick={handleAddChecklistItem}
+                className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm"
               >
                 <Plus size={16} />
               </button>
             </div>
             {formData.checklist.length > 0 && (
-              <div className="space-y-2 max-h-40 overflow-y-auto">
+              <div className="space-y-2">
                 {formData.checklist.map((item, index) => (
-                  <div key={index} className="flex items-center space-x-2 p-2 bg-neutral-50 rounded-lg">
+                  <div
+                    key={index}
+                    className="flex items-center space-x-2 p-2 bg-neutral-50 rounded-lg group"
+                  >
                     <input
                       type="checkbox"
                       checked={item.completed}
-                      onChange={() => toggleChecklistItem(index)}
-                      className="w-4 h-4 rounded border-neutral-300"
+                      onChange={() => handleToggleChecklistItem(index)}
+                      className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
                     />
                     <span className={`flex-1 text-sm ${item.completed ? 'line-through text-neutral-500' : 'text-neutral-700'}`}>
                       {item.text}
                     </span>
                     <button
                       type="button"
-                      onClick={() => removeChecklistItem(index)}
-                      className="p-1 hover:bg-neutral-200 rounded transition-colors"
+                      onClick={() => handleRemoveChecklistItem(index)}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-all"
                     >
-                      <Trash2 size={14} className="text-neutral-500" />
+                      <Trash2 size={14} className="text-red-600" />
                     </button>
                   </div>
                 ))}
@@ -380,23 +430,36 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
             )}
           </div>
 
-          {/* Buttons */}
-          <div className="flex items-center justify-end space-x-2 pt-4 border-t border-neutral-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm"
-            >
-              {task ? 'Guardar Cambios' : 'Crear Tarea'}
-            </button>
+          {/* Archivos Adjuntos */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              Archivos Adjuntos
+            </label>
+            <FileAttachments
+              attachments={attachments}
+              onUpload={handleUploadFiles}
+              onDelete={handleDeleteFile}
+              maxSize={10}
+            />
           </div>
         </form>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end space-x-3 p-5 border-t border-neutral-200">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors font-medium"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium shadow-sm"
+          >
+            {task ? 'Guardar Cambios' : 'Crear Tarea'}
+          </button>
+        </div>
       </div>
     </div>
   )
