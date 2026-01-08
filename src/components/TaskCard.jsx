@@ -1,4 +1,4 @@
-import { MoreVertical, Calendar, CheckSquare, Edit2, Trash2, MoveRight } from 'lucide-react'
+import { MoreVertical, Calendar, CheckSquare, Edit2, Trash2, MoveRight, UserCheck, Clock } from 'lucide-react'
 import { useState } from 'react'
 
 function TaskCard({ task, onEdit, onDelete, onMove, availableStatuses }) {
@@ -148,21 +148,39 @@ function TaskCard({ task, onEdit, onDelete, onMove, availableStatuses }) {
         </div>
       )}
 
+      {/* Solicitante */}
+      {task.requestedBy && (
+        <div className="mb-2.5 flex items-center space-x-1.5 text-[10px] text-neutral-500">
+          <UserCheck size={11} className="text-neutral-400" />
+          <span>Solicitada por: <span className="font-medium text-neutral-700">{task.requestedBy}</span></span>
+        </div>
+      )}
+
       {/* Footer */}
       <div className="flex items-center justify-between pt-2.5 border-t border-neutral-100">
         <div className="flex items-center space-x-1 text-[10px] text-neutral-500 font-medium">
           <Calendar size={11} />
-          <span>{task.dueDate ? new Date(task.dueDate).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }) : 'Sin fecha'}</span>
+          <span>
+            {task.dueDate 
+              ? new Date(task.dueDate).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })
+              : 'Sin fecha'}
+          </span>
+          {task.dueTime && (
+            <>
+              <Clock size={10} className="ml-1" />
+              <span>{task.dueTime}</span>
+            </>
+          )}
         </div>
         
         {task.assignee && (
           <div className="flex items-center space-x-1.5">
             <div className="w-5 h-5 bg-gradient-to-br from-primary-600 to-primary-700 rounded-full flex items-center justify-center shadow-sm">
               <span className="text-white text-[9px] font-semibold">
-                {task.assignee.split(' ').map(n => n[0]).join('')}
+                {task.assignee.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
               </span>
             </div>
-            <span className="text-[10px] text-neutral-600 font-medium">{task.assignee}</span>
+            <span className="text-[10px] text-neutral-600 font-medium truncate max-w-[100px]">{task.assignee}</span>
           </div>
         )}
       </div>

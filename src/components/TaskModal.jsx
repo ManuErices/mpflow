@@ -1,10 +1,10 @@
-import { X, Calendar as CalendarIcon, User, Flag, CheckSquare, Plus, Trash2 } from 'lucide-react'
+import { X, Calendar as CalendarIcon, User, Flag, CheckSquare, Plus, Trash2, Clock, UserCheck } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import FileAttachments from './FileAttachments'
 import { uploadMultipleFiles, deleteFile } from '../utils/storageHelper'
 
-function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) {
+function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, teamMembers = [] }) {
   const { user } = useAuth()
   const [formData, setFormData] = useState({
     title: '',
@@ -12,11 +12,14 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
     priority: 'medium',
     assignee: '',
     dueDate: '',
+    dueTime: '',
     tags: [],
     projectId: currentProject?.id || '',
     status: 'todo',
     checklist: [],
-    attachments: []
+    attachments: [],
+    requestedBy: user?.displayName || user?.email || 'Usuario',
+    requestedById: user?.uid
   })
 
   const [newTag, setNewTag] = useState('')
@@ -32,11 +35,14 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
         priority: task.priority || 'medium',
         assignee: task.assignee || '',
         dueDate: task.dueDate || '',
+        dueTime: task.dueTime || '',
         tags: task.tags || [],
         projectId: task.projectId || currentProject?.id || '',
         status: task.status || 'todo',
         checklist: task.checklist?.items || [],
-        attachments: task.attachments || []
+        attachments: task.attachments || [],
+        requestedBy: task.requestedBy || user?.displayName || user?.email || 'Usuario',
+        requestedById: task.requestedById || user?.uid
       })
       setAttachments(task.attachments || [])
     } else {
@@ -46,16 +52,19 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
         priority: 'medium',
         assignee: '',
         dueDate: '',
+        dueTime: '',
         tags: [],
         projectId: currentProject?.id || '',
         status: 'todo',
         checklist: [],
-        attachments: []
+        attachments: [],
+        requestedBy: user?.displayName || user?.email || 'Usuario',
+        requestedById: user?.uid
       })
       setAttachments([])
     }
     setErrors({})
-  }, [task, isOpen, currentProject])
+  }, [task, isOpen, currentProject, user])
 
   const priorityOptions = [
     { value: 'low', label: 'Baja', color: 'bg-blue-100 text-blue-700' },
@@ -178,7 +187,11 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
     onSave({
       ...formData,
       checklist: checklistData,
-      attachments
+      attachments,
+      requestedBy: formData.requestedBy,
+      requestedById: formData.requestedById,
+      createdAt: task?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     })
     
     onClose()
@@ -191,9 +204,17 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
       <div className="bg-white rounded-xl shadow-large w-full max-w-2xl my-8 animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-neutral-200">
-          <h2 className="text-xl font-bold text-neutral-900">
-            {task ? 'Editar Tarea' : 'Nueva Tarea'}
-          </h2>
+          <div>
+            <h2 className="text-xl font-bold text-neutral-900">
+              {task ? 'Editar Tarea' : 'Nueva Tarea'}
+            </h2>
+            {!task && (
+              <p className="text-xs text-neutral-500 mt-1 flex items-center space-x-1">
+                <UserCheck size={12} />
+                <span>Solicitada por: {formData.requestedBy}</span>
+              </p>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
@@ -284,8 +305,8 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
             </div>
           </div>
 
-          {/* Prioridad, Asignado y Fecha */}
-          <div className="grid grid-cols-3 gap-4">
+          {/* Prioridad y Asignado */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                 <Flag size={14} className="inline mr-1" />
@@ -308,18 +329,31 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                 <User size={14} className="inline mr-1" />
-                Asignado a
+                Asignar a
               </label>
-              <input
-                type="text"
+              <select
                 name="assignee"
                 value={formData.assignee}
                 onChange={handleInputChange}
-                placeholder="Nombre"
                 className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-              />
+              >
+                <option value="">Sin asignar</option>
+                {teamMembers.map(member => (
+                  <option key={member.id} value={member.name}>
+                    {member.name} {member.role ? `- ${member.role}` : ''}
+                  </option>
+                ))}
+              </select>
+              {teamMembers.length === 0 && (
+                <p className="mt-1 text-xs text-neutral-500">
+                  Agrega miembros al equipo para poder asignar tareas
+                </p>
+              )}
             </div>
+          </div>
 
+          {/* Fecha y Hora límite */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                 <CalendarIcon size={14} className="inline mr-1" />
@@ -329,6 +363,20 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
                 type="date"
                 name="dueDate"
                 value={formData.dueDate}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                <Clock size={14} className="inline mr-1" />
+                Hora límite
+              </label>
+              <input
+                type="time"
+                name="dueTime"
+                value={formData.dueTime}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
               />
@@ -442,6 +490,16 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject }) 
               maxSize={10}
             />
           </div>
+
+          {/* Solicitante (solo lectura cuando edita) */}
+          {task && (
+            <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+              <div className="flex items-center space-x-2 text-sm text-neutral-600">
+                <UserCheck size={16} className="text-neutral-400" />
+                <span>Solicitada por: <span className="font-medium text-neutral-900">{task.requestedBy || 'Usuario'}</span></span>
+              </div>
+            </div>
+          )}
         </form>
 
         {/* Footer */}

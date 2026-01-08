@@ -501,6 +501,7 @@ function MainApp({ user }) {
         task={editingTask}
         projects={projects}
         currentProject={selectedProject}
+        teamMembers={teamMembers}  // ← AGREGAR ESTA LÍNEA
       />
 
       <MemberModal
