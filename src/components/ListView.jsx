@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Edit2, Trash2, Calendar, User, Flag, CheckSquare, ArrowUp Down, ArrowUp, ArrowDown } from 'lucide-react'
+import { Edit2, Trash2, Calendar, User, Flag, CheckSquare, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask }) {
   const [sortField, setSortField] = useState('dueDate')
