@@ -13,6 +13,7 @@ import TaskModal from './components/TaskModal'
 import MemberModal from './components/MemberModal'
 import ConfirmModal from './components/ConfirmModal'
 import NotificationPanel from './components/NotificationPanel'
+import AttachmentsModal from './components/AttachmentsModal'
 import { ToastContainer } from './components/Toast'
 import { 
   getProjects, addProject, updateProject, deleteProject,
@@ -49,8 +50,7 @@ function MainApp({ user }) {
   const [notifications, setNotifications] = useState([])
   const [toasts, setToasts] = useState([])
   const [selectedMember, setSelectedMember] = useState(null)
-  const [searchQuery, setSearchQuery] = useState('')
-
+  const [selectedMemberFilter, setSelectedMemberFilter] = useState(null)
   
   // Estados para modales
   const [showProjectModal, setShowProjectModal] = useState(false)
@@ -58,11 +58,13 @@ function MainApp({ user }) {
   const [showMemberModal, setShowMemberModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showNotificationPanel, setShowNotificationPanel] = useState(false)
+  const [showAttachmentsModal, setShowAttachmentsModal] = useState(false)
   
   const [editingProject, setEditingProject] = useState(null)
   const [editingTask, setEditingTask] = useState(null)
   const [editingMember, setEditingMember] = useState(null)
   const [deletingItem, setDeletingItem] = useState(null)
+  const [selectedTaskForAttachments, setSelectedTaskForAttachments] = useState(null)
 
   // Cargar datos desde Firestore con suscripciones en tiempo real
   useEffect(() => {
@@ -150,6 +152,19 @@ function MainApp({ user }) {
 
   const deleteNotification = (id) => {
     setNotifications(prev => prev.filter(n => n.id !== id))
+  }
+
+  // Filtrar tareas por miembro seleccionado
+  const getFilteredTasksByMember = (tasksObj) => {
+    if (!selectedMemberFilter) return tasksObj
+    
+    const filtered = {}
+    Object.keys(tasksObj).forEach(status => {
+      filtered[status] = tasksObj[status].filter(task => 
+        task.assignee === selectedMemberFilter.name
+      )
+    })
+    return filtered
   }
 
   // ===== FUNCIONES CRUD PROYECTOS =====
@@ -242,51 +257,68 @@ function MainApp({ user }) {
 
   const handleSaveTask = async (taskData) => {
     try {
+      // Limpiar attachments antes de guardar en Firestore
+      const cleanData = {
+        ...taskData,
+        attachments: (taskData.attachments || []).map(att => ({
+          id: String(att.id || ''),
+          name: String(att.name || ''),
+          url: String(att.url || ''),
+          path: String(att.path || ''),
+          type: String(att.type || ''),
+          size: Number(att.size || 0),
+          uploadedAt: String(att.uploadedAt || new Date().toISOString())
+        }))
+      }
+      
       if (editingTask) {
-        await updateTask(editingTask.id, taskData)
+        await updateTask(editingTask.id, cleanData)
         showToast('Tarea actualizada correctamente')
-        addNotification('Tarea actualizada', `"${taskData.title}" ha sido modificada`, 'task')
+        addNotification('Tarea actualizada', `"${cleanData.title}" ha sido modificada`, 'task')
       } else {
-        await addTask(user.uid, taskData)
+        await addTask(user.uid, cleanData)
         showToast('Tarea creada correctamente')
-        addNotification('Nueva tarea', `"${taskData.title}" ha sido creada`, 'task')
+        addNotification('Nueva tarea', `"${cleanData.title}" ha sido creada`, 'task')
         
-        if (taskData.assignee) {
-          addNotification('Tarea asignada', `Se te asignó "${taskData.title}"`, 'assignment')
+        if (cleanData.assignee) {
+          addNotification('Tarea asignada', `Se te asignó "${cleanData.title}"`, 'assignment')
         }
       }
+      
+      setShowTaskModal(false)
+      setEditingTask(null)
     } catch (error) {
       console.error('Error al guardar tarea:', error)
-      showToast('Error al guardar tarea', 'error')
+      showToast('Error al guardar tarea: ' + error.message, 'error')
     }
   }
 
   const confirmDeleteTask = async () => {
-  if (!deletingItem || deletingItem.type !== 'task') return
-  
-  const task = deletingItem.data
-  
-  // Verificar que task y task.id existen
-  if (!task || !task.id) {
-    console.error('Error: tarea sin ID', task)
-    showToast('Error: tarea inválida', 'error')
+    if (!deletingItem || deletingItem.type !== 'task') return
+    
+    const task = deletingItem.data
+    
+    // Verificar que task y task.id existen
+    if (!task || !task.id) {
+      console.error('Error: tarea sin ID', task)
+      showToast('Error: tarea inválida', 'error')
+      setDeletingItem(null)
+      setShowDeleteModal(false)
+      return
+    }
+    
+    try {
+      await deleteTask(task.id)
+      showToast('Tarea eliminada correctamente')
+      addNotification('Tarea eliminada', `"${task.title}" ha sido eliminada`, 'task')
+    } catch (error) {
+      console.error('Error al eliminar tarea:', error)
+      showToast('Error al eliminar tarea: ' + error.message, 'error')
+    }
+    
     setDeletingItem(null)
     setShowDeleteModal(false)
-    return
   }
-  
-  try {
-    await deleteTask(task.id)
-    showToast('Tarea eliminada correctamente')
-    addNotification('Tarea eliminada', `"${task.title}" ha sido eliminada`, 'task')
-  } catch (error) {
-    console.error('Error al eliminar tarea:', error)
-    showToast('Error al eliminar tarea: ' + error.message, 'error')
-  }
-  
-  setDeletingItem(null)
-  setShowDeleteModal(false)
-}
 
   const moveTask = async (taskId, fromStatus, toStatus) => {
     const task = tasks[fromStatus]?.find(t => t.id === taskId)
@@ -302,6 +334,33 @@ function MainApp({ user }) {
     } catch (error) {
       console.error('Error al mover tarea:', error)
       showToast('Error al mover tarea', 'error')
+    }
+  }
+
+  // Funciones para manejar adjuntos
+  const handleOpenAttachments = (task) => {
+    setSelectedTaskForAttachments(task)
+    setShowAttachmentsModal(true)
+  }
+
+  const handleSaveAttachments = async (taskId, newAttachments) => {
+    try {
+      // Limpiar datos de attachments
+      const cleanAttachments = newAttachments.map(att => ({
+        id: String(att.id || ''),
+        name: String(att.name || ''),
+        url: String(att.url || ''),
+        path: String(att.path || ''),
+        type: String(att.type || ''),
+        size: Number(att.size || 0),
+        uploadedAt: String(att.uploadedAt || new Date().toISOString())
+      }))
+      
+      await updateTask(taskId, { attachments: cleanAttachments })
+      showToast('Archivos actualizados correctamente')
+    } catch (error) {
+      console.error('Error al actualizar adjuntos:', error)
+      showToast('Error: ' + error.message, 'error')
     }
   }
 
@@ -364,7 +423,7 @@ function MainApp({ user }) {
     }
   }
 
-    const getDeleteMessage = () => {
+  const getDeleteMessage = () => {
     if (!deletingItem || !deletingItem.data) return ''
     
     if (deletingItem.type === 'project') {
@@ -381,7 +440,7 @@ function MainApp({ user }) {
     return ''
   }
 
-  // Filtrar tareas
+  // Filtrar tareas por proyecto
   const getFilteredTasks = () => {
     if (!selectedProject) return tasks
 
@@ -391,34 +450,6 @@ function MainApp({ user }) {
     })
     return filtered
   }
-
-    const getSearchedTasks = () => {
-    const filteredByProject = getFilteredTasks()
-    const query = searchQuery.toLowerCase()
-
-    const result = {}
-
-    Object.keys(filteredByProject).forEach(status => {
-      result[status] = filteredByProject[status]
-        .filter(task => {
-          // 🔍 Búsqueda por texto
-          if (!query) return true
-          return (
-            task.title?.toLowerCase().includes(query) ||
-            task.description?.toLowerCase().includes(query) ||
-            task.tags?.some(tag => tag.toLowerCase().includes(query))
-          )
-        })
-        .filter(task => {
-          // 👤 Filtro por miembro
-          if (!selectedMember) return true
-          return task.assignee === selectedMember.name
-        })
-    })
-
-    return result
-  }
-
 
   const unreadNotificationCount = notifications.filter(n => !n.read).length
 
@@ -445,10 +476,11 @@ function MainApp({ user }) {
           onViewChange={setCurrentView}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           onAddTask={handleAddTask}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
           notificationCount={unreadNotificationCount}
           onNotificationClick={() => setShowNotificationPanel(!showNotificationPanel)}
+          teamMembers={teamMembers}
+          selectedMember={selectedMemberFilter}
+          onMemberFilter={setSelectedMemberFilter}
         />
 
         <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
@@ -464,19 +496,21 @@ function MainApp({ user }) {
             <ProjectBoard 
               projects={projects}
               selectedProject={selectedProject}
-              tasks={getSearchedTasks()}
+              tasks={getFilteredTasksByMember(getFilteredTasks())}
               onEditTask={handleEditTask}
               onDeleteTask={handleDeleteTask}
               onMoveTask={moveTask}
+              onOpenAttachments={handleOpenAttachments}
             />
           )}
           
           {currentView === 'list' && (
             <ListView
-              tasks={getSearchedTasks()}
+              tasks={getFilteredTasksByMember(getFilteredTasks())}
               onEditTask={handleEditTask}
               onDeleteTask={handleDeleteTask}
               onMoveTask={moveTask}
+              onOpenAttachments={handleOpenAttachments}
             />
           )}
 
@@ -524,7 +558,7 @@ function MainApp({ user }) {
         task={editingTask}
         projects={projects}
         currentProject={selectedProject}
-        teamMembers={teamMembers}  // ← AGREGAR ESTA LÍNEA
+        teamMembers={teamMembers}
       />
 
       <MemberModal
@@ -552,6 +586,16 @@ function MainApp({ user }) {
         message={getDeleteMessage()}
         confirmText="Eliminar"
         type="danger"
+      />
+
+      <AttachmentsModal
+        isOpen={showAttachmentsModal}
+        onClose={() => {
+          setShowAttachmentsModal(false)
+          setSelectedTaskForAttachments(null)
+        }}
+        task={selectedTaskForAttachments}
+        onSave={handleSaveAttachments}
       />
 
       <NotificationPanel

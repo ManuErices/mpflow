@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { MoreVertical, Calendar, CheckSquare, Edit2, Trash2, GripVertical, UserCheck, Clock } from 'lucide-react'
+import { MoreVertical, Calendar, CheckSquare, Edit2, Trash2, GripVertical, UserCheck, Clock, Paperclip } from 'lucide-react'
 
-function DraggableTask({ task, onEdit, onDelete, onMove, availableStatuses }) {
+function DraggableTask({ task, onEdit, onDelete, onMove, availableStatuses, onOpenAttachments }) {
   const [showMenu, setShowMenu] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
 
@@ -66,17 +66,15 @@ function DraggableTask({ task, onEdit, onDelete, onMove, availableStatuses }) {
           <p className="text-xs text-neutral-600 line-clamp-2 leading-relaxed">{task.description}</p>
         </div>
         <div className="relative">
-          <button
-        onClick={(e) => {
-          e.stopPropagation()
-          setShowMenu(false)
-          onDelete(task)  // ← IMPORTANTE: debe pasar 'task'
-        }}
-        className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 transition-colors"
-      >
-        <Trash2 size={12} />
-        <span>Eliminar</span>
-      </button>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowMenu(!showMenu)
+            }}
+            className="p-1 hover:bg-neutral-100 rounded transition-colors opacity-0 group-hover:opacity-100"
+          >
+            <MoreVertical size={14} className="text-neutral-400" />
+          </button>
 
           {/* Menu desplegable */}
           {showMenu && (
@@ -91,6 +89,18 @@ function DraggableTask({ task, onEdit, onDelete, onMove, availableStatuses }) {
               >
                 <Edit2 size={12} />
                 <span>Editar</span>
+              </button>
+              
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowMenu(false)
+                  if (onOpenAttachments) onOpenAttachments(task)
+                }}
+                className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 transition-colors"
+              >
+                <Paperclip size={12} />
+                <span>Adjuntar archivos ({task.attachments?.length || 0})</span>
               </button>
               
               {availableStatuses && availableStatuses.length > 0 && (
@@ -119,7 +129,7 @@ function DraggableTask({ task, onEdit, onDelete, onMove, availableStatuses }) {
                 onClick={(e) => {
                   e.stopPropagation()
                   setShowMenu(false)
-                  onDelete()
+                  onDelete(task)
                 }}
                 className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 transition-colors"
               >

@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Edit2, Trash2, Calendar, User, Flag, CheckSquare, ArrowUpDown, ChevronDown, Clock, UserCheck } from 'lucide-react'
+import { Edit2, Trash2, Calendar, User, Flag, CheckSquare, ArrowUpDown, ChevronDown, Clock, UserCheck, Paperclip } from 'lucide-react'
 
-function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask }) {
+function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask, onOpenAttachments }) {
   const [sortField, setSortField] = useState('dueDate')
   const [sortDirection, setSortDirection] = useState('asc')
   const [filterPriority, setFilterPriority] = useState('all')
@@ -335,6 +335,20 @@ function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask }) {
                         >
                           <Edit2 size={14} className="text-primary-600" />
                         </button>
+                        {onOpenAttachments && (
+                          <button
+                            onClick={() => onOpenAttachments(task)}
+                            className="p-1.5 hover:bg-blue-100 rounded transition-colors relative"
+                            title="Adjuntar archivos"
+                          >
+                            <Paperclip size={14} className="text-blue-600" />
+                            {task.attachments?.length > 0 && (
+                              <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                                {task.attachments.length}
+                              </span>
+                            )}
+                          </button>
+                        )}
                         <button
                           onClick={() => onDeleteTask(task)}
                           className="p-1.5 hover:bg-red-100 rounded transition-colors"
