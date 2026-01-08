@@ -34,16 +34,11 @@ function MemberModal({ isOpen, onClose, onSave, member }) {
   }, [member, isOpen])
 
   const roleOptions = [
-    'Arquitecto',
-    'Ingeniero Civil',
-    'Maestro Constructor',
-    'Electricista',
-    'Plomero',
-    'Carpintero',
-    'Albañil',
-    'Coordinador',
-    'Supervisor',
-    'Colaborador'
+    'Gerente de Administración',
+    'Jefa de Administración y RRHH',
+    'Jefa de Oficina Técnica',
+    'Jefe de Contabilidad',
+    'Ejecutivo de Venta',
   ]
 
   const validate = () => {
@@ -127,7 +122,7 @@ function MemberModal({ isOpen, onClose, onSave, member }) {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                placeholder="Ej: Juan Pérez"
+                placeholder="Ej: Fabián Erices"
                 className={`w-full pl-10 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-all ${
                   errors.name
                     ? 'border-red-300 focus:ring-red-500'
@@ -170,7 +165,7 @@ function MemberModal({ isOpen, onClose, onSave, member }) {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="ejemplo@obra.com"
+                placeholder="ejemplo@empresa.cl"
                 className={`w-full pl-10 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-all ${
                   errors.email
                     ? 'border-red-300 focus:ring-red-500'
