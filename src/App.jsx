@@ -68,43 +68,82 @@ function MainApp({ user }) {
 
   // Cargar datos desde Firestore con suscripciones en tiempo real
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      console.log('⏳ Esperando usuario...');
+      return;
+    }
+
+    console.log('👤 Usuario detectado:', user.uid);
+    console.log('📧 Email:', user.email);
 
     let unsubProjects, unsubTasks, unsubMembers
 
     const setupSubscriptions = async () => {
       try {
+        console.log('🔄 Iniciando suscripciones a Firestore...');
+
         // Suscribirse a proyectos en tiempo real
+        console.log('📦 Suscribiéndose a proyectos...');
         unsubProjects = subscribeToProjects(user.uid, (projectsData) => {
+          console.log('✅ Proyectos recibidos:', projectsData.length, projectsData);
           setProjects(projectsData)
           if (projectsData.length > 0 && !selectedProject) {
             setSelectedProject(projectsData[0])
+            console.log('🎯 Proyecto seleccionado:', projectsData[0].name);
           }
         })
 
         // Suscribirse a tareas en tiempo real
+        console.log('📋 Suscribiéndose a tareas...');
         unsubTasks = subscribeToTasks(user.uid, (tasksData) => {
+          console.log('✅ Tareas recibidas:', tasksData.length, tasksData);
+          
+          // Ver todos los status únicos
+          const uniqueStatuses = [...new Set(tasksData.map(t => t.status))];
+          console.log('📊 Status únicos encontrados:', uniqueStatuses);
+          
+          // Mostrar cada tarea y su status
+          tasksData.forEach(task => {
+            console.log('🔍 Tarea:', task.title, '→ Status:', task.status);
+          });
+          
+          // Agrupar tareas por status
           const groupedTasks = {
             'todo': [],
             'in-progress': [],
             'review': [],
             'done': []
           }
+          
           tasksData.forEach(task => {
-            if (groupedTasks[task.status]) {
-              groupedTasks[task.status].push(task)
+            const status = task.status || 'todo'; // Default a 'todo' si no tiene status
+            
+            if (groupedTasks[status]) {
+              groupedTasks[status].push(task);
+            } else {
+              console.warn('⚠️ Status no reconocido:', status, 'en tarea:', task.title);
+              // Crear grupo dinámicamente si no existe
+              groupedTasks[status] = [task];
             }
-          })
+          });
+          
+          console.log('📊 Tareas agrupadas:', groupedTasks);
           setTasks(groupedTasks)
         })
 
         // Suscribirse a miembros en tiempo real
+        console.log('👥 Suscribiéndose a miembros...');
         unsubMembers = subscribeToMembers(user.uid, (membersData) => {
+          console.log('✅ Miembros recibidos:', membersData.length, membersData);
           setTeamMembers(membersData)
         })
 
+        console.log('🎉 Todas las suscripciones completadas');
+
       } catch (error) {
-        console.error('Error al configurar suscripciones:', error)
+        console.error('❌ Error al configurar suscripciones:', error);
+        console.error('Código de error:', error.code);
+        console.error('Mensaje:', error.message);
         showToast('Error al cargar datos', 'error')
       }
     }
@@ -113,11 +152,19 @@ function MainApp({ user }) {
 
     // Cleanup: cancelar suscripciones al desmontar
     return () => {
+      console.log('🧹 Limpiando suscripciones...');
       if (unsubProjects) unsubProjects()
       if (unsubTasks) unsubTasks()
       if (unsubMembers) unsubMembers()
     }
   }, [user])
+
+  // Log cuando cambian los states (para depuración)
+  useEffect(() => {
+    console.log('📦 State actualizado - Proyectos:', projects.length);
+    console.log('📋 State actualizado - Tareas:', Object.keys(tasks).map(k => `${k}: ${tasks[k].length}`));
+    console.log('👥 State actualizado - Miembros:', teamMembers.length);
+  }, [projects, tasks, teamMembers]);
 
   // Sistema de Toast
   const showToast = (message, type = 'success', duration = 3000) => {
@@ -185,6 +232,7 @@ function MainApp({ user }) {
 
   const handleSaveProject = async (projectData) => {
     try {
+      console.log('💾 Guardando proyecto:', projectData);
       if (editingProject) {
         await updateProject(editingProject.id, projectData)
         if (selectedProject?.id === editingProject.id) {
@@ -193,14 +241,15 @@ function MainApp({ user }) {
         showToast('Proyecto actualizado correctamente')
         addNotification('Proyecto actualizado', `"${projectData.name}" ha sido modificado`, 'project')
       } else {
-        const projectId = await addProject(user.uid, projectData)
+        const projectId = await addProject(projectData)
+        console.log('✅ Proyecto creado con ID:', projectId);
         const newProject = { id: projectId, ...projectData }
         setSelectedProject(newProject)
         showToast('Proyecto creado correctamente')
         addNotification('Nuevo proyecto', `"${projectData.name}" ha sido creado`, 'project')
       }
     } catch (error) {
-      console.error('Error al guardar proyecto:', error)
+      console.error('❌ Error al guardar proyecto:', error)
       showToast('Error al guardar proyecto', 'error')
     }
   }
@@ -257,55 +306,34 @@ function MainApp({ user }) {
 
   const handleSaveTask = async (taskData) => {
     try {
-      // Limpiar attachments antes de guardar en Firestore
-      const cleanData = {
-        ...taskData,
-        attachments: (taskData.attachments || []).map(att => ({
-          id: String(att.id || ''),
-          name: String(att.name || ''),
-          url: String(att.url || ''),
-          path: String(att.path || ''),
-          type: String(att.type || ''),
-          size: Number(att.size || 0),
-          uploadedAt: String(att.uploadedAt || new Date().toISOString())
-        }))
-      }
-      
+      console.log('💾 Guardando tarea:', taskData);
       if (editingTask) {
-        await updateTask(editingTask.id, cleanData)
+        await updateTask(editingTask.id, taskData)
         showToast('Tarea actualizada correctamente')
-        addNotification('Tarea actualizada', `"${cleanData.title}" ha sido modificada`, 'task')
+        addNotification('Tarea actualizada', `"${taskData.title}" ha sido modificada`, 'task')
       } else {
-        await addTask(user.uid, cleanData)
+        const taskId = await addTask({
+          ...taskData,
+          projectId: selectedProject.id
+        })
+        console.log('✅ Tarea creada con ID:', taskId);
         showToast('Tarea creada correctamente')
-        addNotification('Nueva tarea', `"${cleanData.title}" ha sido creada`, 'task')
+        addNotification('Nueva tarea', `"${taskData.title}" ha sido creada`, 'task')
         
-        if (cleanData.assignee) {
-          addNotification('Tarea asignada', `Se te asignó "${cleanData.title}"`, 'assignment')
+        if (taskData.assignee) {
+          addNotification('Tarea asignada', `"${taskData.title}" fue asignada a ${taskData.assignee}`, 'assignment')
         }
       }
-      
-      setShowTaskModal(false)
-      setEditingTask(null)
     } catch (error) {
-      console.error('Error al guardar tarea:', error)
-      showToast('Error al guardar tarea: ' + error.message, 'error')
+      console.error('❌ Error al guardar tarea:', error)
+      showToast('Error al guardar tarea', 'error')
     }
   }
 
   const confirmDeleteTask = async () => {
     if (!deletingItem || deletingItem.type !== 'task') return
-    
+
     const task = deletingItem.data
-    
-    // Verificar que task y task.id existen
-    if (!task || !task.id) {
-      console.error('Error: tarea sin ID', task)
-      showToast('Error: tarea inválida', 'error')
-      setDeletingItem(null)
-      setShowDeleteModal(false)
-      return
-    }
     
     try {
       await deleteTask(task.id)
@@ -313,54 +341,35 @@ function MainApp({ user }) {
       addNotification('Tarea eliminada', `"${task.title}" ha sido eliminada`, 'task')
     } catch (error) {
       console.error('Error al eliminar tarea:', error)
-      showToast('Error al eliminar tarea: ' + error.message, 'error')
+      showToast('Error al eliminar tarea', 'error')
     }
     
     setDeletingItem(null)
-    setShowDeleteModal(false)
   }
 
   const moveTask = async (taskId, fromStatus, toStatus) => {
-    const task = tasks[fromStatus]?.find(t => t.id === taskId)
-    if (!task) return
-
     try {
+      console.log('🔄 Moviendo tarea:', taskId, 'de', fromStatus, 'a', toStatus);
       await updateTask(taskId, { status: toStatus })
-      showToast(`Tarea movida a ${toStatus === 'done' ? 'Completado' : toStatus}`)
-      
-      if (toStatus === 'done') {
-        addNotification('Tarea completada', `"${task.title}" ha sido completada`, 'task')
-      }
+      showToast(`Tarea movida a ${toStatus}`)
     } catch (error) {
       console.error('Error al mover tarea:', error)
       showToast('Error al mover tarea', 'error')
     }
   }
 
-  // Funciones para manejar adjuntos
   const handleOpenAttachments = (task) => {
     setSelectedTaskForAttachments(task)
     setShowAttachmentsModal(true)
   }
 
-  const handleSaveAttachments = async (taskId, newAttachments) => {
+  const handleSaveAttachments = async (taskId, attachments) => {
     try {
-      // Limpiar datos de attachments
-      const cleanAttachments = newAttachments.map(att => ({
-        id: String(att.id || ''),
-        name: String(att.name || ''),
-        url: String(att.url || ''),
-        path: String(att.path || ''),
-        type: String(att.type || ''),
-        size: Number(att.size || 0),
-        uploadedAt: String(att.uploadedAt || new Date().toISOString())
-      }))
-      
-      await updateTask(taskId, { attachments: cleanAttachments })
+      await updateTask(taskId, { attachments })
       showToast('Archivos actualizados correctamente')
     } catch (error) {
-      console.error('Error al actualizar adjuntos:', error)
-      showToast('Error: ' + error.message, 'error')
+      console.error('Error al guardar archivos:', error)
+      showToast('Error al guardar archivos', 'error')
     }
   }
 
@@ -382,16 +391,18 @@ function MainApp({ user }) {
 
   const handleSaveMember = async (memberData) => {
     try {
+      console.log('💾 Guardando miembro:', memberData);
       if (editingMember) {
         await updateMember(editingMember.id, memberData)
         showToast('Miembro actualizado correctamente')
       } else {
-        await addMember(user.uid, memberData)
+        const memberId = await addMember(memberData)
+        console.log('✅ Miembro creado con ID:', memberId);
         showToast('Miembro agregado correctamente')
         addNotification('Nuevo miembro', `${memberData.name} se unió al equipo`, 'assignment')
       }
     } catch (error) {
-      console.error('Error al guardar miembro:', error)
+      console.error('❌ Error al guardar miembro:', error)
       showToast('Error al guardar miembro', 'error')
     }
   }
