@@ -1,9 +1,13 @@
 import { useState } from 'react'
-import { MoreVertical, Calendar, CheckSquare, Edit2, Trash2, GripVertical, UserCheck, Clock, Paperclip } from 'lucide-react'
+import { MoreVertical, Calendar, CheckSquare, Edit2, Trash2, GripVertical, UserCheck, Clock, Paperclip, MessageCircle, Lock } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 
 function DraggableTask({ task, onEdit, onDelete, onMove, availableStatuses, onOpenAttachments }) {
+  const { user } = useAuth()
   const [showMenu, setShowMenu] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+
+  const currentUserName = user?.displayName || user?.email || ''
 
   const priorityConfig = {
     high: {
@@ -32,7 +36,38 @@ function DraggableTask({ task, onEdit, onDelete, onMove, availableStatuses, onOp
   const config = priorityConfig[task.priority]
   const progressPercentage = task.checklist ? (task.checklist.completed / task.checklist.total) * 100 : 0
 
+  // Obtener array de asignados (compatibilidad con versión antigua)
+  const getAssignees = () => {
+    if (task.assignees && Array.isArray(task.assignees)) {
+      return task.assignees
+    } else if (task.assignee) {
+      return [task.assignee]
+    }
+    return []
+  }
+
+  const assignees = getAssignees()
+
+  // Verificar si el usuario actual puede modificar la tarea
+  const canModify = () => {
+    // El solicitante siempre puede modificar
+    if (task.requestedBy === currentUserName) return true
+    
+    // Los asignados pueden modificar
+    if (assignees.includes(currentUserName)) return true
+    
+    return false
+  }
+
+  const hasPermission = canModify()
+
   const handleDragStart = (e) => {
+    // Solo permitir arrastrar si tiene permisos
+    if (!hasPermission) {
+      e.preventDefault()
+      return
+    }
+    
     setIsDragging(true)
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('taskId', task.id)
@@ -43,102 +78,144 @@ function DraggableTask({ task, onEdit, onDelete, onMove, availableStatuses, onOp
     setIsDragging(false)
   }
 
+  const handleEdit = () => {
+    if (!hasPermission) {
+      alert('⚠️ No tienes permisos para editar esta tarea.\nSolo el solicitante o los asignados pueden modificarla.')
+      return
+    }
+    onEdit()
+  }
+
+  const handleDelete = () => {
+    if (!hasPermission) {
+      alert('⚠️ No tienes permisos para eliminar esta tarea.\nSolo el solicitante o los asignados pueden modificarla.')
+      return
+    }
+    onDelete(task)
+  }
+
+  const handleMove = (newStatus) => {
+    if (!hasPermission) {
+      alert('⚠️ No tienes permisos para mover esta tarea.\nSolo el solicitante o los asignados pueden modificarla.')
+      return
+    }
+    onMove(newStatus)
+  }
+
   return (
     <div
-      draggable
+      draggable={hasPermission}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      className={`bg-white rounded-lg border border-neutral-200 ${config.border} border-l-2 p-3.5 hover:shadow-md transition-all cursor-move group relative ${
+      className={`bg-white rounded-lg border border-neutral-200 ${config.border} border-l-2 p-3.5 hover:shadow-md transition-all group relative ${
         isDragging ? 'opacity-50 scale-95' : ''
-      }`}
+      } ${hasPermission ? 'cursor-move' : 'cursor-default'}`}
     >
-      {/* Drag Handle */}
-      <div className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <GripVertical size={14} className="text-neutral-400" />
-      </div>
+      {/* Indicador de solo lectura */}
+      {!hasPermission && (
+        <div className="absolute top-2 right-2 z-10">
+          <div className="bg-neutral-100 text-neutral-600 px-2 py-1 rounded-md flex items-center space-x-1" title="Solo lectura">
+            <Lock size={10} />
+            <span className="text-[9px] font-semibold">Solo lectura</span>
+          </div>
+        </div>
+      )}
+
+      {/* Drag Handle - Solo si tiene permisos */}
+      {hasPermission && (
+        <div className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <GripVertical size={14} className="text-neutral-400" />
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-start justify-between mb-2.5 ml-4">
-        <div className="flex-1 pr-2" onClick={onEdit}>
-          <h4 className="font-semibold text-sm text-neutral-900 mb-1 group-hover:text-primary-600 transition-colors leading-snug">
+        <div className="flex-1 pr-2" onClick={handleEdit}>
+          <h4 className={`font-semibold text-sm text-neutral-900 mb-1 transition-colors leading-snug ${
+            hasPermission ? 'group-hover:text-primary-600 cursor-pointer' : ''
+          }`}>
             {task.title}
           </h4>
           <p className="text-xs text-neutral-600 line-clamp-2 leading-relaxed">{task.description}</p>
         </div>
-        <div className="relative">
-          <button 
-            onClick={(e) => {
-              e.stopPropagation()
-              setShowMenu(!showMenu)
-            }}
-            className="p-1 hover:bg-neutral-100 rounded transition-colors opacity-0 group-hover:opacity-100"
-          >
-            <MoreVertical size={14} className="text-neutral-400" />
-          </button>
+        
+        {/* Menu - Solo mostrar si tiene permisos */}
+        {hasPermission && (
+          <div className="relative">
+            <button 
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowMenu(!showMenu)
+              }}
+              className="p-1 hover:bg-neutral-100 rounded transition-colors opacity-0 group-hover:opacity-100"
+            >
+              <MoreVertical size={14} className="text-neutral-400" />
+            </button>
 
-          {/* Menu desplegable */}
-          {showMenu && (
-            <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-30 min-w-[160px]">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShowMenu(false)
-                  onEdit()
-                }}
-                className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 transition-colors"
-              >
-                <Edit2 size={12} />
-                <span>Editar</span>
-              </button>
-              
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShowMenu(false)
-                  if (onOpenAttachments) onOpenAttachments(task)
-                }}
-                className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 transition-colors"
-              >
-                <Paperclip size={12} />
-                <span>Adjuntar archivos ({task.attachments?.length || 0})</span>
-              </button>
-              
-              {availableStatuses && availableStatuses.length > 0 && (
-                <>
-                  <div className="border-t border-neutral-200 my-1"></div>
-                  <div className="px-3 py-1 text-[10px] text-neutral-500 font-semibold uppercase">Mover a</div>
-                  {availableStatuses.map(status => (
-                    <button
-                      key={status.id}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setShowMenu(false)
-                        onMove(status.id)
-                      }}
-                      className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 transition-colors"
-                    >
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: status.color }}></div>
-                      <span>{status.title}</span>
-                    </button>
-                  ))}
-                </>
-              )}
-              
-              <div className="border-t border-neutral-200 my-1"></div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShowMenu(false)
-                  onDelete(task)
-                }}
-                className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 transition-colors"
-              >
-                <Trash2 size={12} />
-                <span>Eliminar</span>
-              </button>
-            </div>
-          )}
-        </div>
+            {/* Menu desplegable */}
+            {showMenu && (
+              <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-30 min-w-[160px]">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowMenu(false)
+                    handleEdit()
+                  }}
+                  className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 transition-colors"
+                >
+                  <Edit2 size={12} />
+                  <span>Editar</span>
+                </button>
+                
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowMenu(false)
+                    if (onOpenAttachments) onOpenAttachments(task)
+                  }}
+                  className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 transition-colors"
+                >
+                  <Paperclip size={12} />
+                  <span>Adjuntar archivos ({task.attachments?.length || 0})</span>
+                </button>
+                
+                {availableStatuses && availableStatuses.length > 0 && (
+                  <>
+                    <div className="border-t border-neutral-200 my-1"></div>
+                    <div className="px-3 py-1 text-[10px] text-neutral-500 font-semibold uppercase">Mover a</div>
+                    {availableStatuses.map(status => (
+                      <button
+                        key={status.id}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowMenu(false)
+                          handleMove(status.id)
+                        }}
+                        className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 transition-colors"
+                      >
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: status.color }}></div>
+                        <span>{status.title}</span>
+                      </button>
+                    ))}
+                  </>
+                )}
+                
+                <div className="border-t border-neutral-200 my-1"></div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowMenu(false)
+                    handleDelete()
+                  }}
+                  className="w-full flex items-center space-x-2 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 size={12} />
+                  <span>Eliminar</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Tags */}
@@ -215,16 +292,56 @@ function DraggableTask({ task, onEdit, onDelete, onMove, availableStatuses, onOp
               <span className="font-semibold">{task.attachments.length}</span>
             </div>
           )}
+          {task.comments && task.comments.length > 0 && (
+            <div className="flex items-center space-x-1 text-primary-600">
+              <MessageCircle size={11} />
+              <span className="font-semibold">{task.comments.length}</span>
+            </div>
+          )}
         </div>
         
-        {task.assignee && (
-          <div className="flex items-center space-x-1.5">
-            <div className="w-5 h-5 bg-gradient-to-br from-primary-600 to-primary-700 rounded-full flex items-center justify-center shadow-sm">
-              <span className="text-white text-[9px] font-semibold">
-                {task.assignee.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-              </span>
+        {/* Múltiples Asignados */}
+        {assignees.length > 0 && (
+          <div className="flex items-center space-x-1">
+            {/* Mostrar hasta 3 avatares */}
+            <div className="flex -space-x-2">
+              {assignees.slice(0, 3).map((assignee, index) => {
+                const isCurrentUser = assignee === currentUserName
+                return (
+                  <div
+                    key={index}
+                    className={`w-6 h-6 rounded-full flex items-center justify-center shadow-sm border-2 ${
+                      isCurrentUser 
+                        ? 'bg-gradient-to-br from-emerald-600 to-emerald-700 border-emerald-300' 
+                        : 'bg-gradient-to-br from-primary-600 to-primary-700 border-white'
+                    }`}
+                    title={assignee + (isCurrentUser ? ' (Tú)' : '')}
+                  >
+                    <span className="text-white text-[8px] font-semibold">
+                      {assignee.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
-            <span className="text-[10px] text-neutral-600 font-medium truncate max-w-[80px]">{task.assignee}</span>
+            
+            {/* Contador si hay más de 3 */}
+            {assignees.length > 3 && (
+              <span className="text-[9px] text-neutral-600 font-semibold bg-neutral-100 px-1.5 py-0.5 rounded-full">
+                +{assignees.length - 3}
+              </span>
+            )}
+            
+            {/* Nombres (solo mostrar el primero o contador) */}
+            {assignees.length === 1 ? (
+              <span className="text-[10px] text-neutral-600 font-medium truncate max-w-[60px]">
+                {assignees[0] === currentUserName ? 'Tú' : assignees[0]}
+              </span>
+            ) : (
+              <span className="text-[10px] text-neutral-600 font-medium">
+                {assignees.length} personas
+              </span>
+            )}
           </div>
         )}
       </div>

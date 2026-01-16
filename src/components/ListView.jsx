@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Edit2, Trash2, Calendar, User, Flag, CheckSquare, ArrowUpDown, ChevronDown, Clock, UserCheck, Paperclip } from 'lucide-react'
+import { Edit2, Trash2, Calendar, User, Flag, CheckSquare, ArrowUpDown, ChevronDown, Clock, UserCheck, Paperclip, Search, X } from 'lucide-react'
 
 function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask, onOpenAttachments }) {
   const [sortField, setSortField] = useState('dueDate')
@@ -7,6 +7,7 @@ function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask, onOpenAtta
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
   const [expandedRow, setExpandedRow] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const statusConfig = {
     'todo': { label: 'Por Hacer', color: 'bg-neutral-500', textColor: 'text-neutral-700' },
@@ -26,8 +27,22 @@ function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask, onOpenAtta
     taskList.map(task => ({ ...task, status }))
   )
 
-  // Filtrar tareas
-  const filteredTasks = allTasks.filter(task => {
+  // Filtrar tareas por búsqueda
+  const searchedTasks = allTasks.filter(task => {
+    if (!searchQuery.trim()) return true
+    
+    const query = searchQuery.toLowerCase()
+    return (
+      task.title?.toLowerCase().includes(query) ||
+      task.description?.toLowerCase().includes(query) ||
+      task.assignee?.toLowerCase().includes(query) ||
+      task.requestedBy?.toLowerCase().includes(query) ||
+      task.tags?.some(tag => tag.toLowerCase().includes(query))
+    )
+  })
+
+  // Filtrar tareas por prioridad y estado
+  const filteredTasks = searchedTasks.filter(task => {
     if (filterPriority !== 'all' && task.priority !== filterPriority) return false
     if (filterStatus !== 'all' && task.status !== filterStatus) return false
     return true
@@ -69,6 +84,10 @@ function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask, onOpenAtta
     setExpandedRow(null)
   }
 
+  const clearSearch = () => {
+    setSearchQuery('')
+  }
+
   const SortIcon = ({ field }) => {
     if (sortField !== field) return <ArrowUpDown size={14} className="text-neutral-400" />
     return sortDirection === 'asc' ? 
@@ -78,43 +97,80 @@ function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask, onOpenAtta
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
+      {/* Buscador y Filtros */}
       <div className="bg-white rounded-xl border border-neutral-200 p-4">
-        <div className="flex flex-wrap gap-3">
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Prioridad</label>
-            <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value)}
-              className="px-3 py-1.5 bg-neutral-50 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="all">Todas</option>
-              <option value="high">Alta</option>
-              <option value="medium">Media</option>
-              <option value="low">Baja</option>
-            </select>
+        <div className="flex flex-col md:flex-row gap-3">
+          {/* Buscador */}
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">
+              Buscar tareas
+            </label>
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar por título, descripción, asignado..."
+                className="w-full pl-10 pr-10 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-neutral-200 rounded transition-colors"
+                  title="Limpiar búsqueda"
+                >
+                  <X size={14} className="text-neutral-500" />
+                </button>
+              )}
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Estado</label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-1.5 bg-neutral-50 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="all">Todos</option>
-              <option value="todo">Por Hacer</option>
-              <option value="in-progress">En Progreso</option>
-              <option value="review">Revisión</option>
-              <option value="done">Completado</option>
-            </select>
-          </div>
+          {/* Filtros */}
+          <div className="flex flex-wrap gap-3">
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Prioridad</label>
+              <select
+                value={filterPriority}
+                onChange={(e) => setFilterPriority(e.target.value)}
+                className="px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="all">Todas</option>
+                <option value="high">Alta</option>
+                <option value="medium">Media</option>
+                <option value="low">Baja</option>
+              </select>
+            </div>
 
-          <div className="ml-auto flex items-end">
-            <span className="text-sm text-neutral-600 font-medium">
-              {sortedTasks.length} tarea{sortedTasks.length !== 1 ? 's' : ''}
-            </span>
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Estado</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="all">Todos</option>
+                <option value="todo">Por Hacer</option>
+                <option value="in-progress">En Progreso</option>
+                <option value="review">Revisión</option>
+                <option value="done">Completado</option>
+              </select>
+            </div>
           </div>
+        </div>
+
+        {/* Contador de resultados */}
+        <div className="mt-3 flex items-center justify-between border-t border-neutral-200 pt-3">
+          <div>
+            {searchQuery && (
+              <p className="text-xs text-neutral-600">
+                Mostrando <span className="font-semibold text-primary-600">{sortedTasks.length}</span> de <span className="font-semibold">{allTasks.length}</span> tareas
+              </p>
+            )}
+          </div>
+          <span className="text-sm text-neutral-600 font-medium">
+            {sortedTasks.length} tarea{sortedTasks.length !== 1 ? 's' : ''}
+          </span>
         </div>
       </div>
 
@@ -186,16 +242,25 @@ function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask, onOpenAtta
                 </th>
               </tr>
             </thead>
-
-            <tbody className="divide-y divide-neutral-100">
+            <tbody className="divide-y divide-neutral-200">
               {sortedTasks.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-12 text-center text-neutral-500">
-                    No hay tareas que coincidan con los filtros
+                  <td colSpan="8" className="px-4 py-12 text-center">
+                    <div className="flex flex-col items-center space-y-2">
+                      <Search size={48} className="text-neutral-300" />
+                      <p className="text-neutral-600 font-medium">
+                        {searchQuery ? 'No se encontraron tareas' : 'No hay tareas'}
+                      </p>
+                      {searchQuery && (
+                        <p className="text-sm text-neutral-500">
+                          Intenta con otros términos de búsqueda
+                        </p>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
-                sortedTasks.map(task => (
+                sortedTasks.map((task) => (
                   <tr key={task.id} className="hover:bg-neutral-50 transition-colors">
                     {/* Tarea */}
                     <td className="px-4 py-3">

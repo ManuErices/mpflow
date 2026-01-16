@@ -14,12 +14,14 @@ import MemberModal from './components/MemberModal'
 import ConfirmModal from './components/ConfirmModal'
 import NotificationPanel from './components/NotificationPanel'
 import AttachmentsModal from './components/AttachmentsModal'
+import ChatPanel from './components/ChatPanel'
 import { ToastContainer } from './components/Toast'
 import { 
   getProjects, addProject, updateProject, deleteProject,
   getTasks, addTask, updateTask, deleteTask,
   getMembers, addMember, updateMember, deleteMember,
-  subscribeToProjects, subscribeToTasks, subscribeToMembers
+  subscribeToProjects, subscribeToTasks, subscribeToMembers,
+  sendMessage, subscribeToMessages
 } from './utils/firestoreHelper'
 
 // Función para generar ID único
@@ -59,6 +61,8 @@ function MainApp({ user }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showNotificationPanel, setShowNotificationPanel] = useState(false)
   const [showAttachmentsModal, setShowAttachmentsModal] = useState(false)
+  const [showChatPanel, setShowChatPanel] = useState(false)
+  const [conversations, setConversations] = useState({})
   
   const [editingProject, setEditingProject] = useState(null)
   const [editingTask, setEditingTask] = useState(null)
@@ -76,7 +80,7 @@ function MainApp({ user }) {
     console.log('👤 Usuario detectado:', user.uid);
     console.log('📧 Email:', user.email);
 
-    let unsubProjects, unsubTasks, unsubMembers
+    let unsubProjects, unsubTasks, unsubMembers, unsubMessages
 
     const setupSubscriptions = async () => {
       try {
@@ -138,6 +142,13 @@ function MainApp({ user }) {
           setTeamMembers(membersData)
         })
 
+        // Suscribirse a mensajes en tiempo real
+        console.log('💬 Suscribiéndose a mensajes...');
+        unsubMessages = subscribeToMessages(user.uid, (messagesData) => {
+          console.log('✅ Mensajes recibidos:', Object.keys(messagesData).length, 'conversaciones');
+          setConversations(messagesData)
+        })
+        
         console.log('🎉 Todas las suscripciones completadas');
 
       } catch (error) {
@@ -156,6 +167,7 @@ function MainApp({ user }) {
       if (unsubProjects) unsubProjects()
       if (unsubTasks) unsubTasks()
       if (unsubMembers) unsubMembers()
+      if (unsubMessages) unsubMessages()
     }
   }, [user])
 
@@ -238,19 +250,19 @@ function MainApp({ user }) {
         if (selectedProject?.id === editingProject.id) {
           setSelectedProject({ ...selectedProject, ...projectData })
         }
-        showToast('Proyecto actualizado correctamente')
-        addNotification('Proyecto actualizado', `"${projectData.name}" ha sido modificado`, 'project')
+        showToast('Área actualizado correctamente')
+        addNotification('Área actualizado', `"${projectData.name}" ha sido modificado`, 'project')
       } else {
         const projectId = await addProject(projectData)
         console.log('✅ Proyecto creado con ID:', projectId);
         const newProject = { id: projectId, ...projectData }
         setSelectedProject(newProject)
-        showToast('Proyecto creado correctamente')
-        addNotification('Nuevo proyecto', `"${projectData.name}" ha sido creado`, 'project')
+        showToast('Área creado correctamente')
+        addNotification('Nueva Área', `"${projectData.name}" ha sido creado`, 'project')
       }
     } catch (error) {
       console.error('❌ Error al guardar proyecto:', error)
-      showToast('Error al guardar proyecto', 'error')
+      showToast('Error al guardar Área', 'error')
     }
   }
 
@@ -274,11 +286,11 @@ function MainApp({ user }) {
         setSelectedProject(remainingProjects.length > 0 ? remainingProjects[0] : null)
       }
 
-      showToast('Proyecto eliminado correctamente')
-      addNotification('Proyecto eliminado', `"${project.name}" ha sido eliminado`, 'project')
+      showToast('Área eliminado correctamente')
+      addNotification('Área eliminada', `"${project.name}" ha sido eliminado`, 'project')
     } catch (error) {
       console.error('Error al eliminar proyecto:', error)
-      showToast('Error al eliminar proyecto', 'error')
+      showToast('Error al eliminar Área', 'error')
     }
     
     setDeletingItem(null)
@@ -287,7 +299,7 @@ function MainApp({ user }) {
   // ===== FUNCIONES CRUD TAREAS =====
   const handleAddTask = () => {
     if (!selectedProject) {
-      showToast('Selecciona un proyecto primero', 'error')
+      showToast('Selecciona un Área primero', 'error')
       return
     }
     setEditingTask(null)
@@ -451,6 +463,54 @@ function MainApp({ user }) {
     return ''
   }
 
+const currentUserName = user?.displayName || user?.email || ''
+
+  // ===== FUNCIONES CHAT =====
+  const handleSendMessage = async (receiverName, message) => {
+    try {
+      // Buscar el receiverId del miembro
+      const receiver = teamMembers.find(m => m.name === receiverName)
+      if (!receiver) {
+        console.error('❌ No se encontró el receptor:', receiverName)
+        return
+      }
+
+      // Agregar IDs necesarios para Firestore
+      const messageWithIds = {
+        ...message,
+        receiverId: receiver.id, // Usar el ID del miembro
+        senderName: currentUserName,
+        receiverName: receiverName
+      }
+
+      // Guardar en Firestore
+      await sendMessage(messageWithIds, user.uid)
+      
+      // El estado se actualizará automáticamente por la suscripción
+      console.log('✅ Mensaje enviado correctamente')
+      
+    } catch (error) {
+      console.error('❌ Error al enviar mensaje:', error)
+      showToast('Error al enviar mensaje', 'error')
+    }
+  }
+
+  // Contar mensajes no leídos
+  const getUnreadMessagesCount = () => {
+    const currentUserName = user?.displayName || user?.email || ''
+    let count = 0
+    
+    Object.values(conversations).forEach(conv => {
+      count += conv.filter(msg => 
+        !msg.read && msg.receiver === currentUserName
+      ).length
+    })
+    
+    return count
+  }
+
+  const unreadMessagesCount = getUnreadMessagesCount()
+
   // Filtrar tareas por proyecto
   const getFilteredTasks = () => {
     if (!selectedProject) return tasks
@@ -489,6 +549,8 @@ function MainApp({ user }) {
           onAddTask={handleAddTask}
           notificationCount={unreadNotificationCount}
           onNotificationClick={() => setShowNotificationPanel(!showNotificationPanel)}
+          unreadMessagesCount={unreadMessagesCount}
+          onMessagesClick={() => setShowChatPanel(!showChatPanel)}
           teamMembers={teamMembers}
           selectedMember={selectedMemberFilter}
           onMemberFilter={setSelectedMemberFilter}
@@ -590,7 +652,7 @@ function MainApp({ user }) {
         }}
         onConfirm={confirmDelete}
         title={
-          deletingItem?.type === 'project' ? '¿Eliminar proyecto?' :
+          deletingItem?.type === 'project' ? '¿Eliminar Área?' :
           deletingItem?.type === 'task' ? '¿Eliminar tarea?' :
           '¿Eliminar miembro?'
         }
@@ -617,7 +679,14 @@ function MainApp({ user }) {
         onMarkAllAsRead={markAllNotificationsAsRead}
         onDelete={deleteNotification}
       />
-
+      <ChatPanel
+        isOpen={showChatPanel}
+        onClose={() => setShowChatPanel(false)}
+        teamMembers={teamMembers}
+        tasks={tasks}
+        onSendMessage={handleSendMessage}
+        conversations={conversations}
+      />
       <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   )

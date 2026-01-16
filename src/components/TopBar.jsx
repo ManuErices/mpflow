@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Calendar as CalendarIcon, UserCircle, Plus, Bell, Filter, X, Users } from 'lucide-react'
+import { LayoutGrid, List, Calendar as CalendarIcon, UserCircle, Plus, Bell, Filter, X, Users, MessageCircle } from 'lucide-react'
 import { useState } from 'react'
 
 function TopBar({ 
@@ -7,6 +7,8 @@ function TopBar({
   onAddTask,
   notificationCount,
   onNotificationClick,
+  unreadMessagesCount,
+  onMessagesClick,
   teamMembers = [],
   selectedMember,
   onMemberFilter
@@ -152,10 +154,25 @@ function TopBar({
             </button>
           )}
 
+          {/* Messages */}
+          <button
+            onClick={onMessagesClick}
+            className="relative p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+            title="Mensajes"
+          >
+            <MessageCircle size={20} className="text-neutral-600" />
+            {unreadMessagesCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+              </span>
+            )}
+          </button>
+
           {/* Notifications */}
           <button
             onClick={onNotificationClick}
             className="relative p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+            title="Notificaciones"
           >
             <Bell size={20} className="text-neutral-600" />
             {notificationCount > 0 && (

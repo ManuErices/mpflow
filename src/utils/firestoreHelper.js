@@ -1,16 +1,18 @@
-// utils/firestoreHelper.js - SIN orderBy (funciona inmediatamente)
+// utils/firestoreHelper.js
 import { 
   collection, 
-  query, 
-  where, 
-  onSnapshot, 
+  doc, 
   addDoc, 
   updateDoc, 
   deleteDoc, 
-  doc,
-  getDocs,
+  getDocs, 
+  getDoc,
+  query, 
+  where, 
+  onSnapshot,
+  orderBy,
   serverTimestamp
-} from 'firebase/firestore';
+} from 'firebase/firestore'
 import { db } from '../firebase';
 
 // ============================================
@@ -19,7 +21,7 @@ import { db } from '../firebase';
 
 export const getProjects = async (userId) => {
   try {
-    const q = query(collection(db, 'projects'));  // ✅ Sin orderBy
+    const q = query(collection(db, 'projects'));
     
     const snapshot = await getDocs(q);
     const projects = snapshot.docs.map(doc => ({
@@ -40,7 +42,7 @@ export const getProjects = async (userId) => {
 };
 
 export const subscribeToProjects = (userId, callback) => {
-  const q = query(collection(db, 'projects'));  // ✅ Sin orderBy
+  const q = query(collection(db, 'projects'));
 
   return onSnapshot(q, (snapshot) => {
     const projects = snapshot.docs.map(doc => ({
@@ -104,7 +106,7 @@ export const deleteProject = async (projectId) => {
 
 export const getTasks = async (userId) => {
   try {
-    const q = query(collection(db, 'tasks'));  // ✅ Sin orderBy
+    const q = query(collection(db, 'tasks'));
     
     const snapshot = await getDocs(q);
     const tasks = snapshot.docs.map(doc => ({
@@ -125,7 +127,7 @@ export const getTasks = async (userId) => {
 };
 
 export const subscribeToTasks = (userId, callback) => {
-  const q = query(collection(db, 'tasks'));  // ✅ Sin orderBy
+  const q = query(collection(db, 'tasks'));
 
   return onSnapshot(q, (snapshot) => {
     const tasks = snapshot.docs.map(doc => ({
@@ -189,7 +191,7 @@ export const deleteTask = async (taskId) => {
 
 export const getMembers = async (userId) => {
   try {
-    const q = query(collection(db, 'teamMembers'));  // ✅ Sin orderBy
+    const q = query(collection(db, 'teamMembers'));
     
     const snapshot = await getDocs(q);
     const members = snapshot.docs.map(doc => ({
@@ -210,7 +212,7 @@ export const getMembers = async (userId) => {
 };
 
 export const subscribeToMembers = (userId, callback) => {
-  const q = query(collection(db, 'teamMembers'));  // ✅ Sin orderBy
+  const q = query(collection(db, 'teamMembers'));
 
   return onSnapshot(q, (snapshot) => {
     const members = snapshot.docs.map(doc => ({
@@ -341,3 +343,123 @@ export const countTasksByStatus = async () => {
     return { todo: 0, 'in-progress': 0, review: 0, done: 0 };
   }
 };
+
+// ============================================
+// MENSAJES / CHAT
+// ============================================
+
+// Enviar mensaje
+export const sendMessage = async (message, userId) => {
+  try {
+    // Crear un ID de conversación único (ordenado alfabéticamente)
+    const participants = [message.senderId, message.receiverId].sort()
+    const conversationId = participants.join('_')
+    
+    const messageData = {
+      ...message,
+      conversationId,
+      participants,
+      userId, // Dueño de los datos
+      timestamp: new Date(),
+      createdAt: new Date()
+    }
+    
+    const docRef = await addDoc(collection(db, 'messages'), messageData)
+    console.log('✅ Mensaje guardado con ID:', docRef.id)
+    return docRef.id
+  } catch (error) {
+    console.error('❌ Error al enviar mensaje:', error)
+    throw error
+  }
+}
+
+// Suscribirse a mensajes en tiempo real
+export const subscribeToMessages = (userId, callback) => {
+  console.log('🔄 Suscribiéndose a mensajes para usuario:', userId)
+  
+  const q = query(
+    collection(db, 'messages'),
+    where('userId', '==', userId),
+    orderBy('timestamp', 'asc')
+  )
+  
+  return onSnapshot(q, (snapshot) => {
+    console.log('📨 Mensajes recibidos desde Firestore:', snapshot.docs.length)
+    
+    // Organizar mensajes por conversación
+    const conversations = {}
+    
+    snapshot.docs.forEach(doc => {
+      const data = doc.data()
+      
+      console.log('📩 Procesando mensaje:', {
+        id: doc.id,
+        sender: data.sender,
+        receiver: data.receiver,
+        text: data.text
+      })
+      
+      const messageData = {
+        id: doc.id,
+        ...data,
+        timestamp: data.timestamp?.toDate().toISOString() || new Date().toISOString()
+      }
+      
+      // Determinar con quién es la conversación
+      // Si yo soy el sender, la conversación es con el receiver
+      // Si yo soy el receiver, la conversación es con el sender
+      const currentUserName = data.senderName || data.sender
+      const otherUserName = data.receiverName || data.receiver
+      
+      // Determinar el nombre del contacto
+      let contactName
+      if (data.senderId === userId) {
+        // Yo envié el mensaje, el contacto es el receptor
+        contactName = otherUserName
+      } else {
+        // Yo recibí el mensaje, el contacto es el sender
+        contactName = currentUserName
+      }
+      
+      console.log('👥 Conversación con:', contactName)
+      
+      if (!conversations[contactName]) {
+        conversations[contactName] = []
+      }
+      
+      conversations[contactName].push(messageData)
+    })
+    
+    console.log('📊 Conversaciones organizadas:', {
+      cantidad: Object.keys(conversations).length,
+      contactos: Object.keys(conversations)
+    })
+    
+    callback(conversations)
+  }, (error) => {
+    console.error('❌ Error en suscripción de mensajes:', error)
+  })
+}
+
+// Marcar mensajes como leídos
+export const markMessagesAsRead = async (conversationId, currentUserId) => {
+  try {
+    const q = query(
+      collection(db, 'messages'),
+      where('conversationId', '==', conversationId),
+      where('read', '==', false),
+      where('receiverId', '==', currentUserId)
+    )
+    
+    const snapshot = await getDocs(q)
+    
+    const updatePromises = snapshot.docs.map(doc => 
+      updateDoc(doc.ref, { read: true })
+    )
+    
+    await Promise.all(updatePromises)
+    console.log('✅ Mensajes marcados como leídos')
+  } catch (error) {
+    console.error('❌ Error al marcar mensajes como leídos:', error)
+  }
+}

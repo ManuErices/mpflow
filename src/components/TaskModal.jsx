@@ -1,4 +1,4 @@
-import { X, Calendar as CalendarIcon, User, Flag, CheckSquare, Plus, Trash2, Clock, UserCheck } from 'lucide-react'
+import { X, Calendar as CalendarIcon, User, Flag, CheckSquare, Plus, Trash2, Clock, UserCheck, Users } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import FileAttachments from './FileAttachments'
@@ -10,7 +10,7 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
     title: '',
     description: '',
     priority: 'medium',
-    assignee: '',
+    assignees: [], // Cambiado de assignee a assignees (array)
     dueDate: '',
     dueTime: '',
     tags: [],
@@ -29,11 +29,19 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
 
   useEffect(() => {
     if (task) {
+      // Compatibilidad con tareas antiguas que usan 'assignee' (string)
+      let assigneesArray = []
+      if (task.assignees && Array.isArray(task.assignees)) {
+        assigneesArray = task.assignees
+      } else if (task.assignee) {
+        assigneesArray = [task.assignee]
+      }
+
       setFormData({
         title: task.title || '',
         description: task.description || '',
         priority: task.priority || 'medium',
-        assignee: task.assignee || '',
+        assignees: assigneesArray,
         dueDate: task.dueDate || '',
         dueTime: task.dueTime || '',
         tags: task.tags || [],
@@ -50,7 +58,7 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
         title: '',
         description: '',
         priority: 'medium',
-        assignee: '',
+        assignees: [],
         dueDate: '',
         dueTime: '',
         tags: [],
@@ -88,6 +96,24 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
+  }
+
+  // Manejar selección/deselección de asignados
+  const handleToggleAssignee = (memberName) => {
+    setFormData(prev => {
+      const isSelected = prev.assignees.includes(memberName)
+      if (isSelected) {
+        return {
+          ...prev,
+          assignees: prev.assignees.filter(name => name !== memberName)
+        }
+      } else {
+        return {
+          ...prev,
+          assignees: [...prev.assignees, memberName]
+        }
+      }
+    })
   }
 
   const handleAddTag = () => {
@@ -188,6 +214,9 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
       ...formData,
       checklist: checklistData,
       attachments,
+      assignees: formData.assignees, // Guardar como array
+      // Mantener compatibilidad con código antiguo
+      assignee: formData.assignees.length > 0 ? formData.assignees[0] : '',
       requestedBy: formData.requestedBy,
       requestedById: formData.requestedById,
       createdAt: task?.createdAt || new Date().toISOString(),
@@ -305,51 +334,76 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
             </div>
           </div>
 
-          {/* Prioridad y Asignado */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                <Flag size={14} className="inline mr-1" />
-                Prioridad
-              </label>
-              <select
-                name="priority"
-                value={formData.priority}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-              >
-                {priorityOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Prioridad */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+              <Flag size={14} className="inline mr-1" />
+              Prioridad
+            </label>
+            <select
+              name="priority"
+              value={formData.priority}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+            >
+              {priorityOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                <User size={14} className="inline mr-1" />
-                Asignar a
-              </label>
-              <select
-                name="assignee"
-                value={formData.assignee}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-              >
-                <option value="">Sin asignar</option>
-                {teamMembers.map(member => (
-                  <option key={member.id} value={member.name}>
-                    {member.name} {member.role ? `- ${member.role}` : ''}
-                  </option>
-                ))}
-              </select>
-              {teamMembers.length === 0 && (
-                <p className="mt-1 text-xs text-neutral-500">
-                  Agrega miembros al equipo para poder asignar tareas
-                </p>
-              )}
-            </div>
+          {/* Asignar a (Múltiples personas) */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              <Users size={14} className="inline mr-1" />
+              Asignar a {formData.assignees.length > 0 && `(${formData.assignees.length})`}
+            </label>
+            
+            {teamMembers.length === 0 ? (
+              <p className="text-sm text-neutral-500 p-3 bg-neutral-50 rounded-lg">
+                Agrega miembros al equipo para poder asignar tareas
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto p-2 border border-neutral-200 rounded-lg bg-neutral-50">
+                {teamMembers.map(member => {
+                  const isSelected = formData.assignees.includes(member.name)
+                  
+                  return (
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={() => handleToggleAssignee(member.name)}
+                      className={`w-full flex items-center space-x-3 p-2 rounded-lg transition-all ${
+                        isSelected
+                          ? 'bg-primary-100 border-2 border-primary-500'
+                          : 'bg-white border-2 border-transparent hover:border-neutral-300'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        isSelected ? 'bg-primary-600' : 'bg-gradient-to-br from-neutral-400 to-neutral-500'
+                      }`}>
+                        <span className="text-white text-xs font-semibold">
+                          {member.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className="text-sm font-medium text-neutral-900">{member.name}</p>
+                        {member.role && (
+                          <p className="text-xs text-neutral-500">{member.role}</p>
+                        )}
+                      </div>
+                      {isSelected && (
+                        <div className="w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center">
+                          <CheckSquare size={14} className="text-white" />
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* Fecha y Hora límite */}
