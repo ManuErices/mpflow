@@ -302,29 +302,45 @@ function MainApp({ user }) {
   }
 
   // Funciones para el chat
-  const handleSendMessage = async (receiverName, message) => {
-    try {
-      const receiver = teamMembers.find(m => m.name === receiverName)
-      if (!receiver) {
-        console.error('❌ No se encontró el receptor:', receiverName)
-        return
-      }
-
-      const messageWithIds = {
-        ...message,
-        receiverId: receiver.id,
-        senderName: currentUserName,
-        receiverName: receiverName
-      }
-
-      await sendMessage(messageWithIds, user.uid)
-      console.log('✅ Mensaje enviado correctamente')
-      
-    } catch (error) {
-      console.error('❌ Error al enviar mensaje:', error)
-      showToast('Error al enviar mensaje', 'error')
+const handleSendMessage = async (receiverName, message) => {
+  try {
+    const receiver = teamMembers.find(m => m.name === receiverName)
+    if (!receiver) {
+      console.error('❌ No se encontró el receptor:', receiverName)
+      showToast('No se encontró el contacto', 'error')
+      return
     }
+
+    // Crear mensaje limpio sin campos undefined
+    const messageWithIds = {
+      sender: currentUserName,
+      receiver: receiverName,
+      text: message.text || '',
+      timestamp: message.timestamp || new Date(),
+      read: false,
+      receiverId: receiver.id,
+      senderName: currentUserName,
+      receiverName: receiverName
+    }
+
+    // Si tiene referencia a tarea, agregarla
+    if (message.taskReference) {
+      messageWithIds.taskReference = {
+        id: message.taskReference.id || '',
+        title: message.taskReference.title || '',
+        status: message.taskReference.status || '',
+        priority: message.taskReference.priority || ''
+      }
+    }
+
+    await sendMessage(messageWithIds, user.uid)
+    console.log('✅ Mensaje enviado correctamente')
+    
+  } catch (error) {
+    console.error('❌ Error al enviar mensaje:', error)
+    showToast('Error al enviar mensaje', 'error')
   }
+}
 
   // Contar mensajes no leídos
   const getUnreadMessagesCount = () => {
