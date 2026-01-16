@@ -7,6 +7,7 @@ import { getDatabase } from 'firebase/database'
 const firebaseConfig = {
   apiKey: "AIzaSyCi6rMPyZrXZyLBAfCsWJ44pUsku0Pds68",
   authDomain: "mpflow-f0be9.firebaseapp.com",
+  databaseURL: "https://mpflow-f0be9-default-rtdb.firebaseio.com/", // ← NUEVO
   projectId: "mpflow-f0be9",
   storageBucket: "mpflow-f0be9.firebasestorage.app",
   messagingSenderId: "149977304918",
@@ -18,3 +19,5 @@ export const auth = getAuth(app)
 export const db = getFirestore(app)
 export const storage = getStorage(app)
 export const database = getDatabase(app)
+
+export default app

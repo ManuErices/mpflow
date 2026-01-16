@@ -1,9 +1,8 @@
 // presenceHelper.js
 // Sistema de presencia online/offline en tiempo real
 
-import { db } from '../firebase'
+import { database } from '../firebase'
 import { ref as dbRef, onValue, set, onDisconnect, serverTimestamp } from 'firebase/database'
-import { getDatabase } from 'firebase/database'
 
 /**
  * Inicializar presencia del usuario
@@ -13,7 +12,6 @@ import { getDatabase } from 'firebase/database'
 export const initializePresence = (userId, userName) => {
   if (!userId) return null
 
-  const database = getDatabase()
   const userStatusRef = dbRef(database, `status/${userId}`)
 
   // Estado online
@@ -47,7 +45,6 @@ export const initializePresence = (userId, userName) => {
  * @returns {Function} - Función para desuscribirse
  */
 export const subscribeToPresence = (callback) => {
-  const database = getDatabase()
   const presenceRef = dbRef(database, 'status')
 
   const unsubscribe = onValue(presenceRef, (snapshot) => {
@@ -97,7 +94,6 @@ export const getUserStatus = (presences, userName) => {
 export const cleanupPresence = async (userId) => {
   if (!userId) return
 
-  const database = getDatabase()
   const userStatusRef = dbRef(database, `status/${userId}`)
 
   try {

@@ -90,11 +90,11 @@ function MainApp({ user }) {
 
   // Estados para chat y presencia
   const [conversations, setConversations] = useState({})
-  const [presences, setPresences] = useState({}) // NUEVO: Estado de presencias
+  const [presences, setPresences] = useState({})
 
   const currentUserName = user?.displayName || user?.email || ''
 
-  // Cargar datos desde Firestore con suscripciones en tiempo real
+  // ===== EFECTO PRINCIPAL: Suscripciones a Firestore =====
   useEffect(() => {
     if (!user) {
       console.log('⏳ Esperando usuario...');
@@ -104,7 +104,7 @@ function MainApp({ user }) {
     console.log('👤 Usuario detectado:', user.uid);
     console.log('📧 Email:', user.email);
 
-    let unsubProjects, unsubTasks, unsubMembers, unsubMessages, recurringInterval, notificationIntervals, unsubPresence, presenceRef
+    let unsubProjects, unsubTasks, unsubMembers, unsubMessages, recurringInterval, notificationIntervals
 
     const setupSubscriptions = async () => {
       try {
@@ -197,17 +197,6 @@ function MainApp({ user }) {
 
         console.log('🔁 Sistema de tareas recurrentes iniciado');
 
-        // NUEVO: Inicializar presencia del usuario
-        presenceRef = initializePresence(user.uid, currentUserName)
-
-        // NUEVO: Suscribirse a cambios de presencia
-        unsubPresence = subscribeToPresence((presencesData) => {
-          setPresences(presencesData)
-          console.log('👥 Presencias actualizadas:', Object.keys(presencesData).length, 'usuarios')
-        })
-
-        console.log('🟢 Sistema de presencia iniciado');
-
       } catch (error) {
         console.error('❌ Error al configurar suscripciones:', error);
         console.error('Código de error:', error.code);
@@ -220,17 +209,43 @@ function MainApp({ user }) {
 
     // Cleanup: cancelar suscripciones al desmontar
     return () => {
-      console.log('🧹 Limpiando suscripciones...');
+      console.log('🧹 Limpiando suscripciones de Firestore...');
       if (unsubProjects) unsubProjects()
       if (unsubTasks) unsubTasks()
       if (unsubMembers) unsubMembers()
       if (unsubMessages) unsubMessages()
       if (recurringInterval) clearInterval(recurringInterval)
       if (notificationIntervals) cleanupNotifications(notificationIntervals)
+    }
+  }, [user, selectedProjects.length])
+
+  // ===== EFECTO SEPARADO: Sistema de Presencia =====
+  useEffect(() => {
+    if (!user) return
+
+    let unsubPresence, presenceRef
+
+    console.log('🟢 Inicializando sistema de presencia...')
+
+    // Inicializar presencia del usuario
+    presenceRef = initializePresence(user.uid, currentUserName)
+
+    // Suscribirse a cambios de presencia de todos los usuarios
+    unsubPresence = subscribeToPresence((presencesData) => {
+      setPresences(presencesData)
+      const onlineCount = Object.values(presencesData).filter(p => p.state === 'online').length
+      console.log('👥 Presencias actualizadas:', onlineCount, 'usuarios online de', Object.keys(presencesData).length, 'total')
+    })
+
+    console.log('✅ Sistema de presencia iniciado')
+
+    // Cleanup: solo limpiar presencia
+    return () => {
+      console.log('🧹 Limpiando sistema de presencia...')
       if (unsubPresence) unsubPresence()
       if (user?.uid) cleanupPresence(user.uid)
     }
-  }, [user, selectedProjects.length])
+  }, [user, currentUserName]) // Solo depende de user y currentUserName
 
   // Solicitar permisos de notificación al cargar la app
   useEffect(() => {
