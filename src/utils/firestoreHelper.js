@@ -1,4 +1,4 @@
-// utils/firestoreHelper.js
+// utils/firestoreHelper.js - SIN orderBy (funciona inmediatamente)
 import { 
   collection, 
   doc, 
@@ -10,8 +10,7 @@ import {
   query, 
   where, 
   onSnapshot,
-  orderBy,
-  serverTimestamp
+  orderBy // Asegúrate de tener este
 } from 'firebase/firestore'
 import { db } from '../firebase';
 
@@ -21,7 +20,7 @@ import { db } from '../firebase';
 
 export const getProjects = async (userId) => {
   try {
-    const q = query(collection(db, 'projects'));
+    const q = query(collection(db, 'projects'));  // ✅ Sin orderBy
     
     const snapshot = await getDocs(q);
     const projects = snapshot.docs.map(doc => ({
@@ -42,7 +41,7 @@ export const getProjects = async (userId) => {
 };
 
 export const subscribeToProjects = (userId, callback) => {
-  const q = query(collection(db, 'projects'));
+  const q = query(collection(db, 'projects'));  // ✅ Sin orderBy
 
   return onSnapshot(q, (snapshot) => {
     const projects = snapshot.docs.map(doc => ({
@@ -106,7 +105,7 @@ export const deleteProject = async (projectId) => {
 
 export const getTasks = async (userId) => {
   try {
-    const q = query(collection(db, 'tasks'));
+    const q = query(collection(db, 'tasks'));  // ✅ Sin orderBy
     
     const snapshot = await getDocs(q);
     const tasks = snapshot.docs.map(doc => ({
@@ -127,7 +126,7 @@ export const getTasks = async (userId) => {
 };
 
 export const subscribeToTasks = (userId, callback) => {
-  const q = query(collection(db, 'tasks'));
+  const q = query(collection(db, 'tasks'));  // ✅ Sin orderBy
 
   return onSnapshot(q, (snapshot) => {
     const tasks = snapshot.docs.map(doc => ({
@@ -191,7 +190,7 @@ export const deleteTask = async (taskId) => {
 
 export const getMembers = async (userId) => {
   try {
-    const q = query(collection(db, 'teamMembers'));
+    const q = query(collection(db, 'teamMembers'));  // ✅ Sin orderBy
     
     const snapshot = await getDocs(q);
     const members = snapshot.docs.map(doc => ({
@@ -212,7 +211,7 @@ export const getMembers = async (userId) => {
 };
 
 export const subscribeToMembers = (userId, callback) => {
-  const q = query(collection(db, 'teamMembers'));
+  const q = query(collection(db, 'teamMembers'));  // ✅ Sin orderBy
 
   return onSnapshot(q, (snapshot) => {
     const members = snapshot.docs.map(doc => ({
@@ -343,36 +342,6 @@ export const countTasksByStatus = async () => {
     return { todo: 0, 'in-progress': 0, review: 0, done: 0 };
   }
 };
-
-// ============================================
-// MENSAJES / CHAT
-// ============================================
-
-// Enviar mensaje
-export const sendMessage = async (message, userId) => {
-  try {
-    // Crear un ID de conversación único (ordenado alfabéticamente)
-    const participants = [message.senderId, message.receiverId].sort()
-    const conversationId = participants.join('_')
-    
-    const messageData = {
-      ...message,
-      conversationId,
-      participants,
-      userId, // Dueño de los datos
-      timestamp: new Date(),
-      createdAt: new Date()
-    }
-    
-    const docRef = await addDoc(collection(db, 'messages'), messageData)
-    console.log('✅ Mensaje guardado con ID:', docRef.id)
-    return docRef.id
-  } catch (error) {
-    console.error('❌ Error al enviar mensaje:', error)
-    throw error
-  }
-}
-
 // Suscribirse a mensajes en tiempo real
 export const subscribeToMessages = (userId, callback) => {
   console.log('🔄 Suscribiéndose a mensajes para usuario:', userId)
@@ -441,25 +410,41 @@ export const subscribeToMessages = (userId, callback) => {
   })
 }
 
-// Marcar mensajes como leídos
-export const markMessagesAsRead = async (conversationId, currentUserId) => {
+// Enviar un nuevo mensaje
+export const sendMessage = async (messageData, userId) => {
   try {
-    const q = query(
-      collection(db, 'messages'),
-      where('conversationId', '==', conversationId),
-      where('read', '==', false),
-      where('receiverId', '==', currentUserId)
-    )
+    // Limpiar el objeto, eliminando cualquier campo undefined
+    const cleanMessage = {
+      userId: userId,
+      sender: messageData.sender || messageData.senderName || '',
+      receiver: messageData.receiver || messageData.receiverName || '',
+      text: messageData.text || '',
+      timestamp: messageData.timestamp || new Date(),
+      read: messageData.read !== undefined ? messageData.read : false,
+      senderId: userId,
+      receiverId: messageData.receiverId || '',
+      senderName: messageData.senderName || messageData.sender || '',
+      receiverName: messageData.receiverName || messageData.receiver || ''
+    }
+
+    // Solo agregar taskReference si existe y tiene datos válidos
+    if (messageData.taskReference && messageData.taskReference.id) {
+      cleanMessage.taskReference = {
+        id: messageData.taskReference.id || '',
+        title: messageData.taskReference.title || '',
+        status: messageData.taskReference.status || '',
+        priority: messageData.taskReference.priority || ''
+      }
+    }
+
+    console.log('💾 Guardando mensaje limpio:', cleanMessage)
+
+    const docRef = await addDoc(collection(db, 'messages'), cleanMessage)
+    console.log('✅ Mensaje guardado con ID:', docRef.id)
     
-    const snapshot = await getDocs(q)
-    
-    const updatePromises = snapshot.docs.map(doc => 
-      updateDoc(doc.ref, { read: true })
-    )
-    
-    await Promise.all(updatePromises)
-    console.log('✅ Mensajes marcados como leídos')
+    return docRef.id
   } catch (error) {
-    console.error('❌ Error al marcar mensajes como leídos:', error)
+    console.error('❌ Error al enviar mensaje:', error)
+    throw error
   }
 }
