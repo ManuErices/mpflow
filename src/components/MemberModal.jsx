@@ -39,6 +39,8 @@ function MemberModal({ isOpen, onClose, onSave, member }) {
     'Jefa de Oficina Técnica',
     'Jefe de Contabilidad',
     'Ejecutivo de Venta',
+    'Jefe de Operaciones',
+    'Ayudante Administrativo',
   ]
 
   const validate = () => {
