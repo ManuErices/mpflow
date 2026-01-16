@@ -24,11 +24,6 @@ import {
   cleanupNotifications,
   notifyTodayTasks
 } from './utils/notificationsHelper'
-import {
-  initializePresence,
-  subscribeToPresence,
-  cleanupPresence
-} from './utils/presenceHelper'
 import { ToastContainer } from './components/Toast'
 import { 
   getProjects, addProject, updateProject, deleteProject,
@@ -58,7 +53,7 @@ function App() {
 function MainApp({ user }) {
   const { logout } = useAuth()
   const [currentView, setCurrentView] = useState('dashboard')
-  const [selectedProjects, setSelectedProjects] = useState([])
+  const [selectedProjects, setSelectedProjects] = useState([]) // CAMBIADO: Array en lugar de objeto único
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [projects, setProjects] = useState([])
   const [tasks, setTasks] = useState({})
@@ -75,7 +70,7 @@ function MainApp({ user }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showNotificationPanel, setShowNotificationPanel] = useState(false)
   const [showAttachmentsModal, setShowAttachmentsModal] = useState(false)
-  const [showChatPanel, setShowChatPanel] = useState(false)
+  const [showChatPanel, setShowChatPanel] = useState(false) // NUEVO: Estado para chat
   const [showRecurringPanel, setShowRecurringPanel] = useState(false)
   const [showNotificationSettings, setShowNotificationSettings] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(
@@ -88,11 +83,10 @@ function MainApp({ user }) {
   const [deletingItem, setDeletingItem] = useState(null)
   const [selectedTaskForAttachments, setSelectedTaskForAttachments] = useState(null)
 
-  // Estados para chat y presencia
-  const [conversations, setConversations] = useState({})
-  const [presences, setPresences] = useState({}) // NUEVO: Estado de presencias
+  // Estados para chat
+  const [conversations, setConversations] = useState({}) // NUEVO: Estado para conversaciones
 
-  const currentUserName = user?.displayName || user?.email || ''
+  const currentUserName = user?.displayName || user?.email || '' // NUEVO: Nombre del usuario actual
 
   // Cargar datos desde Firestore con suscripciones en tiempo real
   useEffect(() => {
@@ -104,8 +98,7 @@ function MainApp({ user }) {
     console.log('👤 Usuario detectado:', user.uid);
     console.log('📧 Email:', user.email);
 
-    let unsubProjects, unsubTasks, unsubMembers, unsubMessages, recurringInterval, notificationIntervals, unsubPresence, presenceRef
-
+    let unsubProjects, unsubTasks, unsubMembers, unsubMessages, recurringInterval, notificationIntervals
     const setupSubscriptions = async () => {
       try {
         console.log('🔄 Iniciando suscripciones a Firestore...');
@@ -116,8 +109,9 @@ function MainApp({ user }) {
           console.log('✅ Proyectos recibidos:', projectsData.length, projectsData);
           setProjects(projectsData)
           
+          // MODIFICADO: Inicializar proyectos seleccionados si no hay ninguno
           if (projectsData.length > 0 && selectedProjects.length === 0) {
-            setSelectedProjects([projectsData[0]])
+            setSelectedProjects([projectsData[0]]) // Seleccionar el primero por defecto
             console.log('🎯 Proyecto seleccionado:', projectsData[0].name);
           }
         })
@@ -127,13 +121,16 @@ function MainApp({ user }) {
         unsubTasks = subscribeToTasks(user.uid, (tasksData) => {
           console.log('✅ Tareas recibidas:', tasksData.length, tasksData);
           
+          // Ver todos los status únicos
           const uniqueStatuses = [...new Set(tasksData.map(t => t.status))];
           console.log('📊 Status únicos encontrados:', uniqueStatuses);
           
+          // Mostrar cada tarea y su status
           tasksData.forEach(task => {
             console.log('🔍 Tarea:', task.title, '→ Status:', task.status);
           });
           
+          // Agrupar tareas por status
           const groupedTasks = {
             'todo': [],
             'in-progress': [],
@@ -142,12 +139,13 @@ function MainApp({ user }) {
           }
           
           tasksData.forEach(task => {
-            const status = task.status || 'todo';
+            const status = task.status || 'todo'; // Default a 'todo' si no tiene status
             
             if (groupedTasks[status]) {
               groupedTasks[status].push(task);
             } else {
               console.warn('⚠️ Status no reconocido:', status, 'en tarea:', task.title);
+              // Crear grupo dinámicamente si no existe
               groupedTasks[status] = [task];
             }
           });
@@ -163,7 +161,7 @@ function MainApp({ user }) {
           setTeamMembers(membersData)
         })
 
-        // Suscribirse a mensajes en tiempo real
+        // NUEVO: Suscribirse a mensajes en tiempo real
         console.log('💬 Suscribiéndose a mensajes...');
         unsubMessages = subscribeToMessages(user.uid, (messagesData) => {
           console.log('✅ Mensajes recibidos:', Object.keys(messagesData).length, 'conversaciones');
@@ -172,7 +170,7 @@ function MainApp({ user }) {
 
         console.log('🎉 Todas las suscripciones completadas');
 
-        // Configurar notificaciones automáticas
+        // NUEVO: Configurar notificaciones automáticas
         if (notificationsEnabled) {
           const allTasks = Object.values(tasks).flat()
           if (allTasks.length > 0) {
@@ -181,7 +179,7 @@ function MainApp({ user }) {
           }
         }
 
-        // Verificar tareas recurrentes
+        // NUEVO: Verificar tareas recurrentes
         const checkRecurring = async () => {
           const allTasks = Object.values(tasks).flat()
           if (allTasks.length > 0) {
@@ -192,21 +190,13 @@ function MainApp({ user }) {
           }
         }
 
-        setTimeout(() => checkRecurring(), 2000)
+        // Ejecutar al cargar
+        setTimeout(() => checkRecurring(), 2000) // Esperar 2 segundos para que carguen las tareas
+
+        // Ejecutar cada 1 hora
         recurringInterval = setInterval(checkRecurring, 60 * 60 * 1000)
 
         console.log('🔁 Sistema de tareas recurrentes iniciado');
-
-        // NUEVO: Inicializar presencia del usuario
-        presenceRef = initializePresence(user.uid, currentUserName)
-
-        // NUEVO: Suscribirse a cambios de presencia
-        unsubPresence = subscribeToPresence((presencesData) => {
-          setPresences(presencesData)
-          console.log('👥 Presencias actualizadas:', Object.keys(presencesData).length, 'usuarios')
-        })
-
-        console.log('🟢 Sistema de presencia iniciado');
 
       } catch (error) {
         console.error('❌ Error al configurar suscripciones:', error);
@@ -224,26 +214,22 @@ function MainApp({ user }) {
       if (unsubProjects) unsubProjects()
       if (unsubTasks) unsubTasks()
       if (unsubMembers) unsubMembers()
-      if (unsubMessages) unsubMessages()
+      if (unsubMessages) unsubMessages() // NUEVO: Limpiar suscripción de mensajes
       if (recurringInterval) clearInterval(recurringInterval)
       if (notificationIntervals) cleanupNotifications(notificationIntervals)
-      if (unsubPresence) unsubPresence()
-      if (user?.uid) cleanupPresence(user.uid)
     }
-  }, [user, selectedProjects.length])
-
+  }, [user, selectedProjects.length]) // MODIFICADO: Agregado selectedProjects.length
   // Solicitar permisos de notificación al cargar la app
-  useEffect(() => {
-    if (notificationsEnabled && Notification.permission === 'default') {
-      requestNotificationPermission().then(granted => {
-        if (!granted) {
-          setNotificationsEnabled(false)
-          localStorage.setItem('mpflow_notifications_enabled', 'false')
-        }
-      })
-    }
-  }, [notificationsEnabled])
-
+    useEffect(() => {
+      if (notificationsEnabled && Notification.permission === 'default') {
+        requestNotificationPermission().then(granted => {
+          if (!granted) {
+            setNotificationsEnabled(false)
+            localStorage.setItem('mpflow_notifications_enabled', 'false')
+          }
+        })
+      }
+    }, [notificationsEnabled])
   // Log cuando cambian los states (para depuración)
   useEffect(() => {
     console.log('📦 State actualizado - Proyectos:', projects.length);
@@ -286,23 +272,28 @@ function MainApp({ user }) {
     setNotifications(prev => prev.filter(n => n.id !== id))
   }
 
-  // Funciones para el chat
+  // NUEVO: Funciones para el chat
   const handleSendMessage = async (receiverName, message) => {
     try {
+      // Buscar el receiverId del miembro
       const receiver = teamMembers.find(m => m.name === receiverName)
       if (!receiver) {
         console.error('❌ No se encontró el receptor:', receiverName)
         return
       }
 
+      // Agregar IDs necesarios para Firestore
       const messageWithIds = {
         ...message,
-        receiverId: receiver.id,
+        receiverId: receiver.id, // Usar el ID del miembro
         senderName: currentUserName,
         receiverName: receiverName
       }
 
+      // Guardar en Firestore
       await sendMessage(messageWithIds, user.uid)
+      
+      // El estado se actualizará automáticamente por la suscripción
       console.log('✅ Mensaje enviado correctamente')
       
     } catch (error) {
@@ -333,7 +324,7 @@ function MainApp({ user }) {
     const filtered = {}
     Object.keys(tasksObj).forEach(status => {
       filtered[status] = tasksObj[status].filter(task => 
-        task.assignees?.includes(selectedMemberFilter.name) ||
+        task.assignees?.includes(selectedMemberFilter.name) || // MODIFICADO: Soporte para assignees array
         task.assignee === selectedMemberFilter.name
       )
     })
@@ -361,6 +352,7 @@ function MainApp({ user }) {
       console.log('💾 Guardando proyecto:', projectData);
       if (editingProject) {
         await updateProject(editingProject.id, projectData)
+        // MODIFICADO: Actualizar en selectedProjects si está seleccionado
         const updatedProjects = selectedProjects.map(p => 
           p.id === editingProject.id ? { ...p, ...projectData } : p
         )
@@ -371,7 +363,7 @@ function MainApp({ user }) {
         const projectId = await addProject(projectData)
         console.log('✅ Proyecto creado con ID:', projectId);
         const newProject = { id: projectId, ...projectData }
-        setSelectedProjects([newProject])
+        setSelectedProjects([newProject]) // MODIFICADO: Seleccionar solo el nuevo
         showToast('Proyecto creado correctamente')
         addNotification('Nuevo proyecto', `"${projectData.name}" ha sido creado`, 'project')
       }
@@ -387,13 +379,16 @@ function MainApp({ user }) {
     const project = deletingItem.data
     
     try {
+      // Eliminar proyecto
       await deleteProject(project.id)
       
+      // Eliminar todas las tareas del proyecto
       const projectTasks = Object.values(tasks).flat().filter(t => t.projectId === project.id)
       for (const task of projectTasks) {
         await deleteTask(task.id)
       }
 
+      // MODIFICADO: Actualizar selectedProjects
       const remainingSelected = selectedProjects.filter(p => p.id !== project.id)
       const remainingProjects = projects.filter(p => p.id !== project.id)
       
@@ -415,7 +410,7 @@ function MainApp({ user }) {
 
   // ===== FUNCIONES CRUD TAREAS =====
   const handleAddTask = () => {
-    if (selectedProjects.length === 0) {
+    if (selectedProjects.length === 0) { // MODIFICADO
       showToast('Selecciona un proyecto primero', 'error')
       return
     }
@@ -443,12 +438,13 @@ function MainApp({ user }) {
       } else {
         const taskId = await addTask({
           ...taskData,
-          projectId: selectedProjects[0].id
+          projectId: selectedProjects[0].id // MODIFICADO: Usar primer proyecto seleccionado
         })
         console.log('✅ Tarea creada con ID:', taskId);
         showToast('Tarea creada correctamente')
         addNotification('Nueva tarea', `"${taskData.title}" ha sido creada`, 'task')
         
+        // MODIFICADO: Notificar a todos los asignados
         if (taskData.assignees && taskData.assignees.length > 0) {
           taskData.assignees.forEach(assignee => {
             addNotification('Tarea asignada', `"${taskData.title}" fue asignada a ${assignee}`, 'assignment')
@@ -571,13 +567,13 @@ function MainApp({ user }) {
     setShowDeleteModal(true)
     setShowRecurringPanel(false)
   }
-
   // ===== FUNCIONES NOTIFICACIONES =====
   const handleToggleNotifications = (enabled) => {
     setNotificationsEnabled(enabled)
     localStorage.setItem('mpflow_notifications_enabled', enabled.toString())
     
     if (enabled) {
+      // Notificar inmediatamente al activar
       const allTasks = Object.values(tasks).flat()
       notifyTodayTasks(allTasks, currentUserName)
       showToast('Notificaciones activadas', 'success')
@@ -617,10 +613,12 @@ function MainApp({ user }) {
     return ''
   }
 
-  // Filtrar tareas por proyectos seleccionados y luego por miembro
+  // MODIFICADO: Filtrar tareas por proyectos seleccionados y luego por miembro
   const getFilteredTasks = () => {
+    // Primero filtrar por proyectos seleccionados
     let filteredTasks = tasks
 
+    // Si hay proyectos seleccionados, filtrar por ellos
     if (selectedProjects.length > 0) {
       const selectedProjectIds = selectedProjects.map(p => p.id)
       filteredTasks = Object.keys(tasks).reduce((acc, status) => {
@@ -631,6 +629,7 @@ function MainApp({ user }) {
       }, {})
     }
 
+    // Luego filtrar por miembro si está activo
     const displayTasks = selectedMemberFilter
       ? Object.keys(filteredTasks).reduce((acc, status) => {
           acc[status] = filteredTasks[status].filter(task => 
@@ -652,8 +651,8 @@ function MainApp({ user }) {
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
         projects={projects}
-        selectedProjects={selectedProjects}
-        onSelectProjects={setSelectedProjects}
+        selectedProjects={selectedProjects} // MODIFICADO: Cambio de prop
+        onSelectProjects={setSelectedProjects} // MODIFICADO: Cambio de prop
         onAddProject={handleAddProject}
         onEditProject={handleEditProject}
         onDeleteProject={handleDeleteProject}
@@ -661,7 +660,7 @@ function MainApp({ user }) {
         onViewChange={setCurrentView}
         user={user}
         onLogout={logout}
-        tasks={tasks}
+        tasks={tasks} // NUEVO: Pasar tasks para calcular contadores
       />
 
       <div className="flex-1 flex flex-col">
@@ -672,8 +671,8 @@ function MainApp({ user }) {
           onAddTask={handleAddTask}
           notificationCount={unreadNotificationCount}
           onNotificationClick={() => setShowNotificationPanel(!showNotificationPanel)}
-          unreadMessagesCount={unreadMessagesCount}
-          onMessagesClick={() => setShowChatPanel(!showChatPanel)}
+          unreadMessagesCount={unreadMessagesCount} // NUEVO: Contador de mensajes no leídos
+          onMessagesClick={() => setShowChatPanel(!showChatPanel)} // NUEVO: Abrir chat
           teamMembers={teamMembers}
           selectedMember={selectedMemberFilter}
           onMemberFilter={setSelectedMemberFilter}
@@ -694,8 +693,8 @@ function MainApp({ user }) {
           {currentView === 'board' && (
             <ProjectBoard 
               projects={projects}
-              selectedProjects={selectedProjects}
-              tasks={getFilteredTasks()}
+              selectedProjects={selectedProjects} // MODIFICADO: Cambio de prop
+              tasks={getFilteredTasks()} // MODIFICADO: Usar función actualizada
               onEditTask={handleEditTask}
               onDeleteTask={handleDeleteTask}
               onMoveTask={moveTask}
@@ -705,7 +704,7 @@ function MainApp({ user }) {
           
           {currentView === 'list' && (
             <ListView
-              tasks={getFilteredTasks()}
+              tasks={getFilteredTasks()} // MODIFICADO: Usar función actualizada
               onEditTask={handleEditTask}
               onDeleteTask={handleDeleteTask}
               onMoveTask={moveTask}
@@ -715,7 +714,7 @@ function MainApp({ user }) {
 
           {currentView === 'team' && (
             <TeamView
-              tasks={getFilteredTasks()}
+              tasks={getFilteredTasks()} // MODIFICADO: Usar función actualizada
               projects={projects}
               onEditTask={handleEditTask}
               teamMembers={teamMembers}
@@ -727,7 +726,7 @@ function MainApp({ user }) {
           
           {currentView === 'calendar' && (
             <CalendarView
-              tasks={getFilteredTasks()}
+              tasks={getFilteredTasks()} // MODIFICADO: Usar función actualizada
               projects={projects}
               onEditTask={handleEditTask}
               onAddTask={handleAddTask}
@@ -756,7 +755,7 @@ function MainApp({ user }) {
         onSave={handleSaveTask}
         task={editingTask}
         projects={projects}
-        currentProject={selectedProjects[0]}
+        currentProject={selectedProjects[0]} // MODIFICADO: Usar primer proyecto seleccionado
         teamMembers={teamMembers}
       />
 
@@ -806,7 +805,7 @@ function MainApp({ user }) {
         onDelete={deleteNotification}
       />
 
-      {/* Panel de Chat con presencias */}
+      {/* NUEVO: Panel de Chat */}
       <ChatPanel
         isOpen={showChatPanel}
         onClose={() => setShowChatPanel(false)}
@@ -814,9 +813,7 @@ function MainApp({ user }) {
         tasks={tasks}
         onSendMessage={handleSendMessage}
         conversations={conversations}
-        presences={presences}
       />
-
       {/* Panel de Tareas Recurrentes */}
       {showRecurringPanel && (
         <RecurringTasksPanel
@@ -826,7 +823,6 @@ function MainApp({ user }) {
           onClose={() => setShowRecurringPanel(false)}
         />
       )}
-
       {/* Panel de Configuración de Notificaciones */}
       {showNotificationSettings && (
         <NotificationSettings
@@ -835,7 +831,6 @@ function MainApp({ user }) {
           notificationsEnabled={notificationsEnabled}
         />
       )}
-
       <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   )

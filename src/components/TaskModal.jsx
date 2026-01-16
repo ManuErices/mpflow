@@ -1,4 +1,4 @@
-import { X, Calendar as CalendarIcon, User, Flag, CheckSquare, Plus, Trash2, Clock, UserCheck, Users } from 'lucide-react'
+import { X, Calendar as CalendarIcon, User, Flag, CheckSquare, Plus, Trash2, Clock, UserCheck, Users, Repeat } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import FileAttachments from './FileAttachments'
@@ -10,7 +10,7 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
     title: '',
     description: '',
     priority: 'medium',
-    assignees: [], // Cambiado de assignee a assignees (array)
+    assignees: [],
     dueDate: '',
     dueTime: '',
     tags: [],
@@ -19,7 +19,14 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
     checklist: [],
     attachments: [],
     requestedBy: user?.displayName || user?.email || 'Usuario',
-    requestedById: user?.uid
+    requestedById: user?.uid,
+    isRecurring: false, // NUEVO
+    recurrence: { // NUEVO
+      type: 'monthly', // monthly, yearly
+      dayOfMonth: 1, // Día del mes (1-31)
+      monthsInterval: 1, // Cada cuántos meses
+      enabled: true
+    }
   })
 
   const [newTag, setNewTag] = useState('')
@@ -50,7 +57,14 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
         checklist: task.checklist?.items || [],
         attachments: task.attachments || [],
         requestedBy: task.requestedBy || user?.displayName || user?.email || 'Usuario',
-        requestedById: task.requestedById || user?.uid
+        requestedById: task.requestedById || user?.uid,
+        isRecurring: task.isRecurring || false,
+        recurrence: task.recurrence || {
+          type: 'monthly',
+          dayOfMonth: 1,
+          monthsInterval: 1,
+          enabled: true
+        }
       })
       setAttachments(task.attachments || [])
     } else {
@@ -67,7 +81,14 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
         checklist: [],
         attachments: [],
         requestedBy: user?.displayName || user?.email || 'Usuario',
-        requestedById: user?.uid
+        requestedById: user?.uid,
+        isRecurring: false,
+        recurrence: {
+          type: 'monthly',
+          dayOfMonth: 1,
+          monthsInterval: 1,
+          enabled: true
+        }
       })
       setAttachments([])
     }
@@ -96,6 +117,25 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
+  }
+
+  // NUEVO: Manejar cambios en recurrencia
+  const handleRecurrenceChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      recurrence: {
+        ...prev.recurrence,
+        [field]: value
+      }
+    }))
+  }
+
+  // NUEVO: Toggle recurrencia
+  const handleToggleRecurring = () => {
+    setFormData(prev => ({
+      ...prev,
+      isRecurring: !prev.isRecurring
+    }))
   }
 
   // Manejar selección/deselección de asignados
@@ -193,6 +233,16 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
       newErrors.projectId = 'Debes seleccionar un proyecto'
     }
 
+    // Validar recurrencia si está activada
+    if (formData.isRecurring) {
+      if (!formData.dueTime) {
+        newErrors.dueTime = 'La hora es obligatoria para tareas recurrentes'
+      }
+      if (formData.recurrence.dayOfMonth < 1 || formData.recurrence.dayOfMonth > 31) {
+        newErrors.recurrence = 'El día debe estar entre 1 y 31'
+      }
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -214,11 +264,12 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
       ...formData,
       checklist: checklistData,
       attachments,
-      assignees: formData.assignees, // Guardar como array
-      // Mantener compatibilidad con código antiguo
+      assignees: formData.assignees,
       assignee: formData.assignees.length > 0 ? formData.assignees[0] : '',
       requestedBy: formData.requestedBy,
       requestedById: formData.requestedById,
+      isRecurring: formData.isRecurring,
+      recurrence: formData.isRecurring ? formData.recurrence : null,
       createdAt: task?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     })
@@ -248,30 +299,30 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
             onClick={onClose}
             className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
           >
-            <X size={20} className="text-neutral-500" />
+            <X size={20} />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-5 space-y-5 max-h-[calc(100vh-200px)] overflow-y-auto">
           {/* Título */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Título <span className="text-red-500">*</span>
+              Título *
             </label>
             <input
               type="text"
               name="title"
               value={formData.title}
               onChange={handleInputChange}
-              placeholder="Ej: Instalar columnas de soporte"
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all ${
-                errors.title ? 'border-red-500' : 'border-neutral-300'
+              placeholder="Ej: Pago de remuneraciones"
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                errors.title 
+                  ? 'border-red-300 focus:ring-red-500' 
+                  : 'border-neutral-300 focus:ring-primary-500'
               }`}
             />
-            {errors.title && (
-              <p className="mt-1 text-sm text-red-600">{errors.title}</p>
-            )}
+            {errors.title && <p className="text-xs text-red-600 mt-1">{errors.title}</p>}
           </div>
 
           {/* Descripción */}
@@ -283,36 +334,128 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
               name="description"
               value={formData.description}
               onChange={handleInputChange}
-              rows={3}
-              placeholder="Describe los detalles de la tarea..."
-              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all resize-none"
+              rows="3"
+              placeholder="Detalles de la tarea..."
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none transition-all"
             />
           </div>
 
-          {/* Proyecto y Estado */}
+          {/* NUEVO: Toggle Tarea Recurrente */}
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg border-2 border-purple-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <Repeat className="text-purple-600" size={18} />
+                <div>
+                  <label className="text-sm font-semibold text-neutral-900">
+                    Tarea Recurrente
+                  </label>
+                  <p className="text-xs text-neutral-600">
+                    Se creará automáticamente cada mes
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleRecurring}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  formData.isRecurring ? 'bg-purple-600' : 'bg-neutral-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    formData.isRecurring ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Configuración de Recurrencia */}
+            {formData.isRecurring && (
+              <div className="space-y-3 pt-3 border-t border-purple-200">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-700 mb-1">
+                      Día del mes *
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={formData.recurrence.dayOfMonth}
+                      onChange={(e) => handleRecurrenceChange('dayOfMonth', parseInt(e.target.value))}
+                      className="w-full px-2 py-1.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    {errors.recurrence && <p className="text-xs text-red-600 mt-1">{errors.recurrence}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-700 mb-1">
+                      Cada (meses)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="12"
+                      value={formData.recurrence.monthsInterval}
+                      onChange={(e) => handleRecurrenceChange('monthsInterval', parseInt(e.target.value))}
+                      className="w-full px-2 py-1.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+                <div className="bg-white p-2 rounded-lg">
+                  <p className="text-xs text-neutral-600">
+                    📅 Esta tarea se creará automáticamente el día <strong>{formData.recurrence.dayOfMonth}</strong> de cada{' '}
+                    {formData.recurrence.monthsInterval > 1 ? `${formData.recurrence.monthsInterval} meses` : 'mes'}
+                    {formData.dueTime && ` a las ${formData.dueTime}`}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Proyecto */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+              Proyecto *
+            </label>
+            <select
+              name="projectId"
+              value={formData.projectId}
+              onChange={handleInputChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                errors.projectId 
+                  ? 'border-red-300 focus:ring-red-500' 
+                  : 'border-neutral-300 focus:ring-primary-500'
+              }`}
+            >
+              <option value="">Selecciona un proyecto</option>
+              {projects.map(project => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+            {errors.projectId && <p className="text-xs text-red-600 mt-1">{errors.projectId}</p>}
+          </div>
+
+          {/* Prioridad y Estado */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                Proyecto <span className="text-red-500">*</span>
+                <Flag size={14} className="inline mr-1" />
+                Prioridad
               </label>
               <select
-                name="projectId"
-                value={formData.projectId}
+                name="priority"
+                value={formData.priority}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all ${
-                  errors.projectId ? 'border-red-500' : 'border-neutral-300'
-                }`}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
               >
-                <option value="">Seleccionar...</option>
-                {projects.map(project => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
+                {priorityOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
-              {errors.projectId && (
-                <p className="mt-1 text-sm text-red-600">{errors.projectId}</p>
-              )}
             </div>
 
             <div>
@@ -332,26 +475,6 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
                 ))}
               </select>
             </div>
-          </div>
-
-          {/* Prioridad */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              <Flag size={14} className="inline mr-1" />
-              Prioridad
-            </label>
-            <select
-              name="priority"
-              value={formData.priority}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-            >
-              {priorityOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* Asignar a (Múltiples personas) */}
@@ -411,29 +534,38 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                 <CalendarIcon size={14} className="inline mr-1" />
-                Fecha límite
+                Fecha límite {!formData.isRecurring && '(opcional)'}
               </label>
               <input
                 type="date"
                 name="dueDate"
                 value={formData.dueDate}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                disabled={formData.isRecurring}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all disabled:bg-neutral-100 disabled:cursor-not-allowed"
               />
+              {formData.isRecurring && (
+                <p className="text-xs text-neutral-500 mt-1">Se calcula automáticamente</p>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                 <Clock size={14} className="inline mr-1" />
-                Hora límite
+                Hora límite {formData.isRecurring && '*'}
               </label>
               <input
                 type="time"
                 name="dueTime"
                 value={formData.dueTime}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                  errors.dueTime 
+                    ? 'border-red-300 focus:ring-red-500' 
+                    : 'border-neutral-300 focus:ring-primary-500'
+                }`}
               />
+              {errors.dueTime && <p className="text-xs text-red-600 mt-1">{errors.dueTime}</p>}
             </div>
           </div>
 
@@ -448,39 +580,37 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                placeholder="Agregar etiqueta..."
-                className="flex-1 px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all text-sm"
+                placeholder="Nueva etiqueta"
+                className="flex-1 px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
               />
               <button
                 type="button"
                 onClick={handleAddTag}
-                className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm"
+                className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
               >
                 <Plus size={16} />
               </button>
             </div>
-            {formData.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {formData.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center space-x-1 px-2.5 py-1 bg-primary-50 text-primary-700 rounded-full text-xs font-medium"
+            <div className="flex flex-wrap gap-2">
+              {formData.tags.map((tag, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center space-x-1 px-2 py-1 bg-neutral-100 text-neutral-700 rounded-md text-xs"
+                >
+                  <span>{tag}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTag(tag)}
+                    className="hover:text-red-600"
                   >
-                    <span>{tag}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTag(tag)}
-                      className="hover:text-primary-900"
-                    >
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+            </div>
           </div>
 
-          {/* Lista de verificación */}
+          {/* Checklist */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1.5">
               <CheckSquare size={14} className="inline mr-1" />
@@ -492,84 +622,68 @@ function TaskModal({ isOpen, onClose, onSave, task, projects, currentProject, te
                 value={newChecklistItem}
                 onChange={(e) => setNewChecklistItem(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddChecklistItem())}
-                placeholder="Agregar elemento..."
-                className="flex-1 px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all text-sm"
+                placeholder="Nueva tarea"
+                className="flex-1 px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
               />
               <button
                 type="button"
                 onClick={handleAddChecklistItem}
-                className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm"
+                className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
               >
                 <Plus size={16} />
               </button>
             </div>
-            {formData.checklist.length > 0 && (
-              <div className="space-y-2">
-                {formData.checklist.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center space-x-2 p-2 bg-neutral-50 rounded-lg group"
+            <div className="space-y-2">
+              {formData.checklist.map((item, index) => (
+                <div key={index} className="flex items-center space-x-2 p-2 bg-neutral-50 rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={item.completed}
+                    onChange={() => handleToggleChecklistItem(index)}
+                    className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                  />
+                  <span className={`flex-1 text-sm ${item.completed ? 'line-through text-neutral-500' : 'text-neutral-900'}`}>
+                    {item.text}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveChecklistItem(index)}
+                    className="text-red-600 hover:text-red-700"
                   >
-                    <input
-                      type="checkbox"
-                      checked={item.completed}
-                      onChange={() => handleToggleChecklistItem(index)}
-                      className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
-                    />
-                    <span className={`flex-1 text-sm ${item.completed ? 'line-through text-neutral-500' : 'text-neutral-700'}`}>
-                      {item.text}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveChecklistItem(index)}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-all"
-                    >
-                      <Trash2 size={14} className="text-red-600" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Archivos Adjuntos */}
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
+            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
               Archivos Adjuntos
             </label>
             <FileAttachments
-              attachments={attachments}
+              files={attachments}
               onUpload={handleUploadFiles}
               onDelete={handleDeleteFile}
-              maxSize={10}
             />
           </div>
-
-          {/* Solicitante (solo lectura cuando edita) */}
-          {task && (
-            <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-200">
-              <div className="flex items-center space-x-2 text-sm text-neutral-600">
-                <UserCheck size={16} className="text-neutral-400" />
-                <span>Solicitada por: <span className="font-medium text-neutral-900">{task.requestedBy || 'Usuario'}</span></span>
-              </div>
-            </div>
-          )}
         </form>
 
         {/* Footer */}
-        <div className="flex items-center justify-end space-x-3 p-5 border-t border-neutral-200">
+        <div className="flex justify-end space-x-3 p-5 border-t border-neutral-200 bg-neutral-50">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors font-medium"
+            className="px-4 py-2 text-neutral-700 hover:bg-neutral-200 rounded-lg transition-colors"
           >
             Cancelar
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium shadow-sm"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
           >
-            {task ? 'Guardar Cambios' : 'Crear Tarea'}
+            {task ? 'Actualizar' : 'Crear'} Tarea
           </button>
         </div>
       </div>

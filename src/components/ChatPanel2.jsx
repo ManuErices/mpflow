@@ -2,9 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { X, Send, Paperclip, Search, ChevronDown, Minimize2, MessageCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import TaskReferenceModal from './TaskReferenceModal'
-import { getUserStatus } from '../utils/presenceHelper'
 
-function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessage, conversations = {}, presences = {} }) {
+function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessage, conversations = {} }) {
   const { user } = useAuth()
   const [selectedContact, setSelectedContact] = useState(null)
   const [message, setMessage] = useState('')
@@ -92,32 +91,6 @@ function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessag
     setShowTaskModal(false)
   }
 
-  // NUEVO: Componente para indicador de presencia
-  const StatusIndicator = ({ userName, size = 'sm' }) => {
-    const status = getUserStatus(presences, userName)
-    const isOnline = status === 'online'
-    
-    const sizeClasses = {
-      sm: 'w-2.5 h-2.5',
-      md: 'w-3 h-3',
-      lg: 'w-3.5 h-3.5'
-    }
-
-    return (
-      <div className="relative">
-        <div 
-          className={`${sizeClasses[size]} rounded-full border-2 border-white ${
-            isOnline ? 'bg-green-500' : 'bg-red-500'
-          }`}
-          title={isOnline ? 'En línea' : 'Desconectado'}
-        />
-        {isOnline && (
-          <div className={`absolute inset-0 ${sizeClasses[size]} rounded-full bg-green-500 animate-ping opacity-75`} />
-        )}
-      </div>
-    )
-  }
-
   if (!isOpen) return null
 
   const currentConversation = selectedContact ? (conversations[selectedContact.name] || []) : []
@@ -129,11 +102,11 @@ function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessag
       {isMinimized && (
         <button
           onClick={() => setIsMinimized(false)}
-          className="fixed bottom-6 right-6 w-14 h-14 bg-primary-600 text-white rounded-full shadow-xl hover:bg-primary-700 transition-all flex items-center justify-center z-50 hover:scale-110"
+          className="fixed bottom-6 right-6 w-14 h-14 bg-primary-600 text-white rounded-full shadow-xl hover:bg-primary-700 transition-all flex items-center justify-center z-50"
         >
           <MessageCircle size={24} />
           {totalUnread > 0 && (
-            <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-bounce">
+            <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
               {totalUnread > 9 ? '9+' : totalUnread}
             </span>
           )}
@@ -142,29 +115,20 @@ function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessag
 
       {/* Chat Panel */}
       {!isMinimized && (
-        <div className="fixed bottom-6 right-6 w-[380px] h-[600px] bg-white rounded-2xl shadow-2xl border border-neutral-200 z-50 flex flex-col animate-scale-in">
+        <div className="fixed bottom-6 right-6 w-[380px] h-[600px] bg-white rounded-2xl shadow-2xl border border-neutral-200 z-50 flex flex-col">
           {/* Header */}
           <div className="p-4 border-b border-neutral-200 bg-gradient-to-r from-primary-600 to-primary-700 rounded-t-2xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <MessageCircle className="text-white" size={20} />
-                  {selectedContact && (
-                    <div className="absolute -bottom-1 -right-1">
-                      <StatusIndicator userName={selectedContact.name} size="sm" />
-                    </div>
-                  )}
-                </div>
+                <MessageCircle className="text-white" size={20} />
                 <div>
                   <h3 className="font-semibold text-white text-sm">
                     {selectedContact ? selectedContact.name : 'Mensajes'}
                   </h3>
                   {selectedContact && (
-                    <div className="flex items-center space-x-1">
-                      <p className="text-xs text-primary-100">
-                        {getUserStatus(presences, selectedContact.name) === 'online' ? '🟢 En línea' : '🔴 Desconectado'}
-                      </p>
-                    </div>
+                    <p className="text-xs text-primary-100">
+                      {selectedContact.role || 'Miembro del equipo'}
+                    </p>
                   )}
                 </div>
               </div>
@@ -225,7 +189,6 @@ function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessag
                   filteredContacts.map(contact => {
                     const unreadCount = getUnreadCount(contact.name)
                     const lastMsg = getLastMessage(contact.name)
-                    const isOnline = getUserStatus(presences, contact.name) === 'online'
 
                     return (
                       <button
@@ -238,10 +201,6 @@ function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessag
                             <span className="text-white text-xs font-semibold">
                               {contact.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                             </span>
-                          </div>
-                          {/* Indicador de presencia */}
-                          <div className="absolute -bottom-0.5 -right-0.5">
-                            <StatusIndicator userName={contact.name} size="md" />
                           </div>
                           {unreadCount > 0 && (
                             <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -260,14 +219,9 @@ function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessag
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <p className="text-xs text-neutral-500 truncate flex-1">
-                              {lastMsg ? lastMsg.text : 'Sin mensajes'}
-                            </p>
-                            {isOnline && (
-                              <span className="text-[10px] text-green-600 font-medium">En línea</span>
-                            )}
-                          </div>
+                          <p className="text-xs text-neutral-500 truncate">
+                            {lastMsg ? lastMsg.text : 'Sin mensajes'}
+                          </p>
                         </div>
                       </button>
                     )

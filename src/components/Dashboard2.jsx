@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { TrendingUp, Users, CheckCircle, Clock, Calendar, AlertTriangle, Folder, Target, User, Repeat, ArrowUpDown } from 'lucide-react'
+import { TrendingUp, Users, CheckCircle, Clock, Calendar, AlertTriangle, Folder, Target, Filter, User, Repeat } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 function Dashboard({ projects, tasks, teamMembers, onOpenRecurringPanel }) {
   const { user } = useAuth()
   const [viewMode, setViewMode] = useState('all') // 'all' o 'mine'
-  const [sortOrder, setSortOrder] = useState('asc') // 'asc' = más antiguo primero, 'desc' = más nuevo primero
   
   const currentUserName = user?.displayName || user?.email || ''
 
@@ -44,24 +43,13 @@ function Dashboard({ projects, tasks, teamMembers, onOpenRecurringPanel }) {
     return new Date(t.dueDate) < today
   }).length
 
-  // Tareas próximas a vencer (próximos 7 días) - con ordenamiento
-  const getUpcomingTasks = () => {
-    const upcoming = filteredTasks.filter(t => {
-      if (!t.dueDate || t.status === 'done') return false
-      const dueDate = new Date(t.dueDate)
-      const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24))
-      return diffDays >= 0 && diffDays <= 7
-    })
-
-    // Ordenar según sortOrder
-    return upcoming.sort((a, b) => {
-      const dateA = new Date(a.dueDate)
-      const dateB = new Date(b.dueDate)
-      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
-    })
-  }
-
-  const upcomingTasks = getUpcomingTasks()
+  // Tareas próximas a vencer (próximos 7 días)
+  const upcomingTasks = filteredTasks.filter(t => {
+    if (!t.dueDate || t.status === 'done') return false
+    const dueDate = new Date(t.dueDate)
+    const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24))
+    return diffDays >= 0 && diffDays <= 7
+  })
 
   // NUEVO: Contar tareas recurrentes
   const recurringTasksCount = Object.values(tasks).flat().filter(t => t.isRecurring && t.recurrence?.enabled).length
@@ -90,10 +78,6 @@ function Dashboard({ projects, tasks, teamMembers, onOpenRecurringPanel }) {
     }))
     .sort((a, b) => b.rate - a.rate)
     .slice(0, 5)
-
-  const toggleSortOrder = () => {
-    setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')
-  }
 
   return (
     <div className="space-y-5">
@@ -306,25 +290,13 @@ function Dashboard({ projects, tasks, teamMembers, onOpenRecurringPanel }) {
         )}
       </div>
 
-      {/* Tareas Próximas a Vencer - CON ORDENAMIENTO */}
+      {/* Tareas Próximas a Vencer */}
       {upcomingTasks.length > 0 && (
         <div className="bg-white rounded-xl border border-neutral-200 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-neutral-900 flex items-center space-x-2">
-              <Calendar size={18} />
-              <span>Próximas a Vencer (7 días)</span>
-            </h3>
-            <button
-              onClick={toggleSortOrder}
-              className="flex items-center space-x-2 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
-              title={sortOrder === 'asc' ? 'Ordenar: Más reciente primero' : 'Ordenar: Más antiguo primero'}
-            >
-              <ArrowUpDown size={14} className="text-neutral-600" />
-              <span className="text-xs font-medium text-neutral-700">
-                {sortOrder === 'asc' ? 'Más antiguo' : 'Más reciente'}
-              </span>
-            </button>
-          </div>
+          <h3 className="font-semibold text-neutral-900 mb-4 flex items-center space-x-2">
+            <Calendar size={18} />
+            <span>Próximas a Vencer (7 días)</span>
+          </h3>
           <div className="space-y-2">
             {upcomingTasks.slice(0, 5).map(task => (
               <div key={task.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">

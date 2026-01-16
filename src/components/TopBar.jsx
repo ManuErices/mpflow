@@ -11,7 +11,9 @@ function TopBar({
   onMessagesClick,
   teamMembers = [],
   selectedMember,
-  onMemberFilter
+  onMemberFilter,
+  onOpenNotificationSettings,
+  notificationsEnabled
 }) {
   const [showFilterMenu, setShowFilterMenu] = useState(false)
 
@@ -168,7 +170,7 @@ function TopBar({
             )}
           </button>
 
-          {/* Notifications */}
+          {/* Notifications (in-app) */}
           <button
             onClick={onNotificationClick}
             className="relative p-2 hover:bg-neutral-100 rounded-lg transition-colors"
@@ -177,6 +179,22 @@ function TopBar({
             <Bell size={20} className="text-neutral-600" />
             {notificationCount > 0 && (
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            )}
+          </button>
+
+          {/* Desktop Notifications Settings */}
+          <button
+            onClick={onOpenNotificationSettings}
+            className={`p-2 rounded-lg transition-colors relative ${
+              notificationsEnabled 
+                ? 'hover:bg-primary-50 text-primary-600' 
+                : 'hover:bg-neutral-100 text-neutral-600'
+            }`}
+            title={notificationsEnabled ? "Notificaciones de escritorio activas" : "Activar notificaciones de escritorio"}
+          >
+            <Bell size={20} />
+            {notificationsEnabled && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full"></span>
             )}
           </button>
         </div>
