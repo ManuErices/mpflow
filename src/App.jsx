@@ -311,34 +311,35 @@ const handleSendMessage = async (receiverName, message) => {
       return
     }
 
-    // Crear mensaje limpio sin campos undefined
+    // Crear mensaje limpio SIN campos undefined
     const messageWithIds = {
-      sender: currentUserName,
-      receiver: receiverName,
-      text: message.text || '',
+      sender: String(currentUserName || ''),
+      receiver: String(receiverName || ''),
+      text: String(message.text || ''),
       timestamp: message.timestamp || new Date(),
       read: false,
-      receiverId: receiver.id,
-      senderName: currentUserName,
-      receiverName: receiverName
+      receiverId: String(receiver.id || ''),
+      senderName: String(currentUserName || ''),
+      receiverName: String(receiverName || '')
     }
 
-    // Si tiene referencia a tarea, agregarla
-    if (message.taskReference) {
+    // Si tiene referencia a tarea, agregarla (SOLO si existe)
+    if (message.taskReference && message.taskReference.id) {
       messageWithIds.taskReference = {
-        id: message.taskReference.id || '',
-        title: message.taskReference.title || '',
-        status: message.taskReference.status || '',
-        priority: message.taskReference.priority || ''
+        id: String(message.taskReference.id || ''),
+        title: String(message.taskReference.title || ''),
+        status: String(message.taskReference.status || ''),
+        priority: String(message.taskReference.priority || '')
       }
     }
 
+    console.log('📤 Enviando mensaje:', messageWithIds)
     await sendMessage(messageWithIds, user.uid)
     console.log('✅ Mensaje enviado correctamente')
     
   } catch (error) {
     console.error('❌ Error al enviar mensaje:', error)
-    showToast('Error al enviar mensaje', 'error')
+    showToast('Error al enviar mensaje: ' + error.message, 'error')
   }
 }
 
