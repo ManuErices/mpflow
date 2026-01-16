@@ -57,6 +57,9 @@ export const subscribeToProjects = (userId, callback) => {
     });
     
     callback(sorted);
+  }, (error) => {
+    console.error('Error al suscribirse a proyectos:', error);
+    callback([]);
   });
 };
 
@@ -64,7 +67,8 @@ export const addProject = async (projectData) => {
   try {
     const docRef = await addDoc(collection(db, 'projects'), {
       ...projectData,
-      createdAt: new Date()
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     });
     return docRef.id;
   } catch (error) {
@@ -76,7 +80,10 @@ export const addProject = async (projectData) => {
 export const updateProject = async (projectId, projectData) => {
   try {
     const projectRef = doc(db, 'projects', projectId);
-    await updateDoc(projectRef, projectData);
+    await updateDoc(projectRef, {
+      ...projectData,
+      updatedAt: serverTimestamp()
+    });
   } catch (error) {
     console.error('Error al actualizar proyecto:', error);
     throw error;
@@ -106,7 +113,12 @@ export const getTasks = async (userId) => {
       ...doc.data()
     }));
     
-    return tasks;
+    // Ordenar en memoria
+    return tasks.sort((a, b) => {
+      const dateA = a.createdAt?.toDate?.() || new Date(0);
+      const dateB = b.createdAt?.toDate?.() || new Date(0);
+      return dateB - dateA;
+    });
   } catch (error) {
     console.error('Error al obtener tareas:', error);
     return [];
@@ -121,7 +133,18 @@ export const subscribeToTasks = (userId, callback) => {
       id: doc.id,
       ...doc.data()
     }));
-    callback(tasks);
+    
+    // Ordenar en memoria
+    const sorted = tasks.sort((a, b) => {
+      const dateA = a.createdAt?.toDate?.() || new Date(0);
+      const dateB = b.createdAt?.toDate?.() || new Date(0);
+      return dateB - dateA;
+    });
+    
+    callback(sorted);
+  }, (error) => {
+    console.error('Error al suscribirse a tareas:', error);
+    callback([]);
   });
 };
 
@@ -129,7 +152,8 @@ export const addTask = async (taskData) => {
   try {
     const docRef = await addDoc(collection(db, 'tasks'), {
       ...taskData,
-      createdAt: new Date()
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     });
     return docRef.id;
   } catch (error) {
@@ -141,7 +165,10 @@ export const addTask = async (taskData) => {
 export const updateTask = async (taskId, taskData) => {
   try {
     const taskRef = doc(db, 'tasks', taskId);
-    await updateDoc(taskRef, taskData);
+    await updateDoc(taskRef, {
+      ...taskData,
+      updatedAt: serverTimestamp()
+    });
   } catch (error) {
     console.error('Error al actualizar tarea:', error);
     throw error;
@@ -163,7 +190,7 @@ export const deleteTask = async (taskId) => {
 
 export const getMembers = async (userId) => {
   try {
-    const q = query(collection(db, 'members'));  // ✅ Sin orderBy
+    const q = query(collection(db, 'teamMembers'));  // ✅ Sin orderBy
     
     const snapshot = await getDocs(q);
     const members = snapshot.docs.map(doc => ({
@@ -171,7 +198,12 @@ export const getMembers = async (userId) => {
       ...doc.data()
     }));
     
-    return members;
+    // Ordenar en memoria por nombre
+    return members.sort((a, b) => {
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
   } catch (error) {
     console.error('Error al obtener miembros:', error);
     return [];
@@ -179,22 +211,33 @@ export const getMembers = async (userId) => {
 };
 
 export const subscribeToMembers = (userId, callback) => {
-  const q = query(collection(db, 'members'));  // ✅ Sin orderBy
+  const q = query(collection(db, 'teamMembers'));  // ✅ Sin orderBy
 
   return onSnapshot(q, (snapshot) => {
     const members = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
-    callback(members);
+    
+    // Ordenar en memoria por nombre
+    const sorted = members.sort((a, b) => {
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+    
+    callback(sorted);
+  }, (error) => {
+    console.error('Error al suscribirse a miembros:', error);
+    callback([]);
   });
 };
 
 export const addMember = async (memberData) => {
   try {
-    const docRef = await addDoc(collection(db, 'members'), {
+    const docRef = await addDoc(collection(db, 'teamMembers'), {
       ...memberData,
-      createdAt: new Date()
+      createdAt: serverTimestamp()
     });
     return docRef.id;
   } catch (error) {
@@ -205,7 +248,7 @@ export const addMember = async (memberData) => {
 
 export const updateMember = async (memberId, memberData) => {
   try {
-    const memberRef = doc(db, 'members', memberId);
+    const memberRef = doc(db, 'teamMembers', memberId);
     await updateDoc(memberRef, memberData);
   } catch (error) {
     console.error('Error al actualizar miembro:', error);
@@ -215,7 +258,7 @@ export const updateMember = async (memberId, memberData) => {
 
 export const deleteMember = async (memberId) => {
   try {
-    await deleteDoc(doc(db, 'members', memberId));
+    await deleteDoc(doc(db, 'teamMembers', memberId));
   } catch (error) {
     console.error('Error al eliminar miembro:', error);
     throw error;
@@ -223,73 +266,82 @@ export const deleteMember = async (memberId) => {
 };
 
 // ============================================
-// ARCHIVOS Y ATTACHMENTS
+// FUNCIONES AUXILIARES
 // ============================================
 
-export const uploadAttachment = async (taskId, file) => {
+export const getTasksByProject = async (projectId) => {
   try {
-    // Aquí iría la lógica de subir archivos a Firebase Storage
-    // Por ahora retornamos una URL de ejemplo
-    return {
-      name: file.name,
-      url: URL.createObjectURL(file),
-      type: file.type,
-      size: file.size
-    };
+    const q = query(
+      collection(db, 'tasks'),
+      where('projectId', '==', projectId)
+    );
+    
+    const snapshot = await getDocs(q);
+    const tasks = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    // Ordenar en memoria
+    return tasks.sort((a, b) => {
+      const dateA = a.createdAt?.toDate?.() || new Date(0);
+      const dateB = b.createdAt?.toDate?.() || new Date(0);
+      return dateB - dateA;
+    });
   } catch (error) {
-    console.error('Error al subir archivo:', error);
-    throw error;
+    console.error('Error al obtener tareas del proyecto:', error);
+    return [];
   }
 };
 
-// ============================================
-// ESTADÍSTICAS Y CONTADORES
-// ============================================
-
-export const getProjectStats = async (projectId) => {
+export const getTasksByAssignee = async (assigneeName) => {
   try {
-    const q = query(collection(db, 'tasks'));  // ✅ Sin orderBy
+    const q = query(
+      collection(db, 'tasks'),
+      where('assignee', '==', assigneeName)
+    );
+    
     const snapshot = await getDocs(q);
+    const tasks = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
     
-    const projectTasks = snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(task => task.projectId === projectId);
-    
-    return {
-      total: projectTasks.length,
-      completed: projectTasks.filter(t => t.status === 'done').length,
-      inProgress: projectTasks.filter(t => t.status === 'in-progress').length,
-      todo: projectTasks.filter(t => t.status === 'todo').length
-    };
+    // Ordenar en memoria
+    return tasks.sort((a, b) => {
+      const dateA = a.createdAt?.toDate?.() || new Date(0);
+      const dateB = b.createdAt?.toDate?.() || new Date(0);
+      return dateB - dateA;
+    });
   } catch (error) {
-    console.error('Error al obtener estadísticas:', error);
-    return { total: 0, completed: 0, inProgress: 0, todo: 0 };
+    console.error('Error al obtener tareas del usuario:', error);
+    return [];
   }
 };
 
-export const getTaskCounts = async (userId) => {
+export const countTasksByStatus = async () => {
   try {
-    const q = query(collection(db, 'tasks'));  // ✅ Sin orderBy
-    const snapshot = await getDocs(q);
-    
-    const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    
-    return {
-      todo: tasks.filter(t => t.status === 'todo').length,
-      'in-progress': tasks.filter(t => t.status === 'in-progress').length,
-      review: tasks.filter(t => t.status === 'review').length,
-      done: tasks.filter(t => t.status === 'done').length
+    const snapshot = await getDocs(collection(db, 'tasks'));
+    const counts = {
+      todo: 0,
+      'in-progress': 0,
+      review: 0,
+      done: 0
     };
+    
+    snapshot.docs.forEach(doc => {
+      const status = doc.data().status;
+      if (counts[status] !== undefined) {
+        counts[status]++;
+      }
+    });
+    
+    return counts;
   } catch (error) {
     console.error('Error al contar tareas:', error);
     return { todo: 0, 'in-progress': 0, review: 0, done: 0 };
   }
 };
-
-// ============================================
-// MENSAJES
-// ============================================
-
 // Suscribirse a mensajes en tiempo real
 export const subscribeToMessages = (userId, callback) => {
   console.log('🔄 Suscribiéndose a mensajes para usuario:', userId)
@@ -323,6 +375,8 @@ export const subscribeToMessages = (userId, callback) => {
       }
       
       // Determinar con quién es la conversación
+      // Si yo soy el sender, la conversación es con el receiver
+      // Si yo soy el receiver, la conversación es con el sender
       const currentUserName = data.senderName || data.sender
       const otherUserName = data.receiverName || data.receiver
       
@@ -354,12 +408,11 @@ export const subscribeToMessages = (userId, callback) => {
   }, (error) => {
     console.error('❌ Error en suscripción de mensajes:', error)
   })
-}
 
 // Enviar un nuevo mensaje (DUPLICADO para emisor y receptor)
 export const sendMessage = async (messageData, senderId) => {
   try {
-    // Buscar el receiverId en la base de datos
+    // Buscar el miembro receptor para obtener su userId
     const membersSnapshot = await getDocs(collection(db, 'members'))
     const receiver = membersSnapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() }))
@@ -370,7 +423,12 @@ export const sendMessage = async (messageData, senderId) => {
       throw new Error('Receptor no encontrado')
     }
 
-    const receiverId = receiver.id
+    if (!receiver.userId) {
+      console.error('❌ El receptor no tiene userId:', receiver)
+      throw new Error('El receptor no tiene cuenta de usuario. Agrega el campo userId en Firestore.')
+    }
+
+    const receiverUserId = receiver.userId
 
     // Crear objeto base del mensaje
     const baseMessage = {
@@ -380,7 +438,7 @@ export const sendMessage = async (messageData, senderId) => {
       timestamp: messageData.timestamp || new Date(),
       read: false,
       senderId: senderId,
-      receiverId: receiverId,
+      receiverId: receiverUserId,
       senderName: messageData.senderName || messageData.sender || '',
       receiverName: messageData.receiverName || messageData.receiver || ''
     }
@@ -404,7 +462,7 @@ export const sendMessage = async (messageData, senderId) => {
     // DOCUMENTO 2: Para el receptor
     const receiverMessage = {
       ...baseMessage,
-      userId: receiverId
+      userId: receiverUserId
     }
 
     console.log('💾 Guardando mensaje para emisor:', senderMessage)
