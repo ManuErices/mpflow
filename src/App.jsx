@@ -16,7 +16,6 @@ import NotificationPanel from './components/NotificationPanel'
 import AttachmentsModal from './components/AttachmentsModal'
 import ChatPanel from './components/ChatPanel'
 import RecurringTasksPanel from './components/RecurringTasksPanel'
-import UpdateUserDisplayName from './components/UpdateUserDisplayName'
 import { checkAndGenerateRecurringTasks } from './utils/recurringTasksHelper'
 import NotificationSettings from './components/NotificationSettings'
 import {
@@ -694,7 +693,6 @@ const handleSendMessage = async (receiverName, message) => {
 
   return (
     <div className="min-h-screen bg-neutral-50 flex">
-      <UpdateUserDisplayName />  {/* ← AGREGAR ESTA LÍNEA */}
       <Sidebar 
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
