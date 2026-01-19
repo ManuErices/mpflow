@@ -305,9 +305,18 @@ export const subscribeToMessages = (userId, callback) => {
 export const sendMessage = async (messageData, senderId) => {
   try {
     const membersSnapshot = await getDocs(collection(db, 'teamMembers'))
-    const receiver = membersSnapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .find(m => m.name === messageData.receiverName)
+    const allMembers = membersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    
+    // 🆕 VALIDAR EL EMISOR PRIMERO
+    const sender = allMembers.find(m => m.userId === senderId)
+    
+    if (!sender) {
+      console.error('❌ El emisor no está registrado en teamMembers con userId:', senderId)
+      throw new Error(`⚠️ Tu perfil no está configurado correctamente para enviar mensajes.\n\n🔧 Solución:\nUn administrador debe:\n1. Ir a la vista "Equipo"\n2. Buscar tu perfil en la lista\n3. Editar tu perfil\n4. Agregar tu email de cuenta (${senderId}) en el campo "Email de Usuario Registrado"`)
+    }
+    
+    // Validar el receptor
+    const receiver = allMembers.find(m => m.name === messageData.receiverName)
 
     if (!receiver) {
       console.error('❌ No se encontró el receptor:', messageData.receiverName)
