@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import TaskReferenceModal from './TaskReferenceModal'
 import { getUserStatus } from '../utils/presenceHelper'
 
-function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessage, onMarkAsRead, conversations = {}, presences = {} }) {
+function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessage, conversations = {}, presences = {} }) {
   const { user } = useAuth()
   const [selectedContact, setSelectedContact] = useState(null)
   const [message, setMessage] = useState('')
@@ -21,20 +21,9 @@ function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessag
     }
   }, [conversations, selectedContact, isMinimized])
 
-  // Marcar mensajes como leídos cuando se abre una conversación
-  useEffect(() => {
-    if (selectedContact && onMarkAsRead && !isMinimized) {
-      // Pequeño delay para asegurar que los mensajes estén visibles
-      const timer = setTimeout(() => {
-        onMarkAsRead(selectedContact.name)
-      }, 500)
-      
-      return () => clearTimeout(timer)
-    }
-  }, [selectedContact, onMarkAsRead, isMinimized])
-
   const filteredContacts = teamMembers.filter(member =>
-    member.name.toLowerCase().includes(searchQuery.toLowerCase())
+    member.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+    member.name !== currentUserName  // Excluir al usuario actual
   )
 
   const getUnreadCount = (contactName) => {

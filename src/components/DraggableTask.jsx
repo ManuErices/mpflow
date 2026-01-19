@@ -50,11 +50,14 @@ function DraggableTask({ task, onEdit, onDelete, onMove, availableStatuses, onOp
 
   // Verificar si el usuario actual puede modificar la tarea
   const canModify = () => {
-    // El solicitante siempre puede modificar
+    // 1. El solicitante puede modificar
     if (task.requestedBy === currentUserName) return true
     
-    // Los asignados pueden modificar
+    // 2. Si está en la lista de asignados
     if (assignees.includes(currentUserName)) return true
+    
+    // 3. Si tiene un solo asignado (assignee)
+    if (task.assignee === currentUserName) return true
     
     return false
   }

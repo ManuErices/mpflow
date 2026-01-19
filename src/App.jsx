@@ -35,7 +35,7 @@ import {
   getTasks, addTask, updateTask, deleteTask,
   getMembers, addMember, updateMember, deleteMember,
   subscribeToProjects, subscribeToTasks, subscribeToMembers,
-  sendMessage, subscribeToMessages, markMessagesAsRead
+  sendMessage, subscribeToMessages
 } from './utils/firestoreHelper'
 
 // Función para generar ID único
@@ -343,19 +343,6 @@ const handleSendMessage = async (receiverName, message) => {
   }
 }
 
-  // Marcar mensajes como leídos
-  const handleMarkMessagesAsRead = async (contactName) => {
-    try {
-      if (!user || !contactName) return
-      
-      console.log('📖 Marcando mensajes como leídos de:', contactName)
-      await markMessagesAsRead(user.uid, contactName)
-      console.log('✅ Mensajes marcados como leídos')
-    } catch (error) {
-      console.error('❌ Error al marcar mensajes como leídos:', error)
-    }
-  }
-
   // Contar mensajes no leídos
   const getUnreadMessagesCount = () => {
     let count = 0
@@ -534,6 +521,9 @@ const handleSendMessage = async (receiverName, message) => {
     }
   }
 
+  // Alias para ListView
+  const handleMoveTask = moveTask
+
   const handleOpenAttachments = (task) => {
     setSelectedTaskForAttachments(task)
     setShowAttachmentsModal(true)
@@ -709,22 +699,24 @@ const handleSendMessage = async (receiverName, message) => {
         tasks={tasks}
       />
 
-      <div className="flex-1 flex flex-col">
-        <TopBar 
-          currentView={currentView}
-          onViewChange={setCurrentView}
-          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          onAddTask={handleAddTask}
-          notificationCount={unreadNotificationCount}
-          onNotificationClick={() => setShowNotificationPanel(!showNotificationPanel)}
-          unreadMessagesCount={unreadMessagesCount}
-          onMessagesClick={() => setShowChatPanel(!showChatPanel)}
-          teamMembers={teamMembers}
-          selectedMember={selectedMemberFilter}
+      <div className="flex-1 flex flex-col min-h-screen">
+        <div className="sticky top-0 z-50">
+          <TopBar 
+            currentView={currentView}
+            onViewChange={setCurrentView}
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            onAddTask={handleAddTask}
+            notificationCount={unreadNotificationCount}
+            onNotificationClick={() => setShowNotificationPanel(!showNotificationPanel)}
+            unreadMessagesCount={unreadMessagesCount}
+            onMessagesClick={() => setShowChatPanel(!showChatPanel)}
+            teamMembers={teamMembers}
+            selectedMember={selectedMemberFilter}
           onMemberFilter={setSelectedMemberFilter}
           onOpenNotificationSettings={handleOpenNotificationSettings}
           notificationsEnabled={notificationsEnabled}
         />
+        </div>
 
         <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
           {currentView === 'dashboard' && (
@@ -758,20 +750,20 @@ const handleSendMessage = async (receiverName, message) => {
             />
           )}
 
-            {currentView === 'team' && (
-              <TeamView
-                tasks={getFilteredTasks()}
-                projects={projects}
-                onEditTask={handleEditTask}
-                onDeleteTask={handleDeleteTask}
-                teamMembers={teamMembers}
-                onAddMember={handleAddMember}
-                onEditMember={handleEditMember}
-                onDeleteMember={handleDeleteMember}
-                currentUserName={currentUserName}
-              />
-            )}
-                      
+          {currentView === 'team' && (
+            <TeamView
+              tasks={getFilteredTasks()}
+              projects={projects}
+              onEditTask={handleEditTask}
+              onDeleteTask={handleDeleteTask}
+              teamMembers={teamMembers}
+              onAddMember={handleAddMember}
+              onEditMember={handleEditMember}
+              onDeleteMember={handleDeleteMember}
+              currentUserName={currentUserName}
+            />
+          )}
+          
           {currentView === 'calendar' && (
             <CalendarView
               tasks={getFilteredTasks()}
@@ -862,7 +854,6 @@ const handleSendMessage = async (receiverName, message) => {
         teamMembers={teamMembers}
         tasks={tasks}
         onSendMessage={handleSendMessage}
-        onMarkAsRead={handleMarkMessagesAsRead}
         conversations={conversations}
         presences={presences}
       />

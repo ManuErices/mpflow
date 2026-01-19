@@ -17,16 +17,16 @@ function TeamView({ tasks = {}, projects, onEditTask, onDeleteTask, teamMembers 
 
   // Función para verificar si el usuario puede modificar una tarea
   const canModifyTask = (task) => {
-    // El solicitante siempre puede modificar
+    // 1. El solicitante puede modificar
     if (task.requestedBy === currentUserName) return true
     
-    // Si tiene asignados múltiples
-    if (task.assignees && Array.isArray(task.assignees)) {
-      return task.assignees.includes(currentUserName)
-    }
-    
-    // Si tiene un solo asignado
+    // 2. Si tiene un solo asignado (assignee)
     if (task.assignee === currentUserName) return true
+    
+    // 3. Si tiene múltiples asignados (assignees)
+    if (task.assignees && Array.isArray(task.assignees) && task.assignees.includes(currentUserName)) {
+      return true
+    }
     
     return false
   }
@@ -353,7 +353,9 @@ function TeamView({ tasks = {}, projects, onEditTask, onDeleteTask, teamMembers 
                           <div className="flex items-start justify-between mb-2">
                             <h4 
                               onClick={() => canModify && onEditTask(task)}
-                              className={`font-medium text-neutral-900 flex-1 ${canModify ? 'cursor-pointer hover:text-primary-600' : 'cursor-default'}`}
+                              className={`font-medium text-neutral-900 flex-1 transition-colors ${
+                                canModify ? 'cursor-pointer hover:text-primary-600' : 'cursor-default'
+                              }`}
                             >
                               {task.title}
                             </h4>

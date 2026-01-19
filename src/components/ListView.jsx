@@ -1,13 +1,44 @@
 import { useState } from 'react'
 import { Edit2, Trash2, Calendar, User, Flag, CheckSquare, ArrowUpDown, ChevronDown, Clock, UserCheck, Paperclip, Search, X } from 'lucide-react'
 
-function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask, onOpenAttachments }) {
+function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask, onOpenAttachments, currentUserName }) {
   const [sortField, setSortField] = useState('dueDate')
   const [sortDirection, setSortDirection] = useState('asc')
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
   const [expandedRow, setExpandedRow] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Función para verificar si el usuario puede modificar una tarea
+  const canModifyTask = (task) => {
+    // Debug logging
+    console.log('🔍 Verificando permisos para:', task.title)
+    console.log('  - currentUserName:', currentUserName)
+    console.log('  - task.requestedBy:', task.requestedBy)
+    console.log('  - task.assignee:', task.assignee)
+    console.log('  - task.assignees:', task.assignees)
+    
+    // 1. El solicitante puede modificar
+    if (task.requestedBy === currentUserName) {
+      console.log('  ✅ Tiene permisos (es el solicitante)')
+      return true
+    }
+    
+    // 2. Si tiene un solo asignado (assignee)
+    if (task.assignee === currentUserName) {
+      console.log('  ✅ Tiene permisos (es el asignado)')
+      return true
+    }
+    
+    // 3. Si tiene múltiples asignados (assignees)
+    if (task.assignees && Array.isArray(task.assignees) && task.assignees.includes(currentUserName)) {
+      console.log('  ✅ Tiene permisos (está en la lista de asignados)')
+      return true
+    }
+    
+    console.log('  ❌ NO tiene permisos')
+    return false
+  }
 
   const statusConfig = {
     'todo': { label: 'Por Hacer', color: 'bg-neutral-500', textColor: 'text-neutral-700' },
@@ -266,8 +297,12 @@ function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask, onOpenAtta
                     <td className="px-4 py-3">
                       <div className="max-w-xs">
                         <p 
-                          onClick={() => onEditTask(task)}
-                          className="text-sm font-medium text-neutral-900 truncate cursor-pointer hover:text-primary-600 transition-colors"
+                          onClick={() => canModifyTask(task) && onEditTask(task)}
+                          className={`text-sm font-medium text-neutral-900 truncate ${
+                            canModifyTask(task) 
+                              ? 'cursor-pointer hover:text-primary-600' 
+                              : 'cursor-default'
+                          } transition-colors`}
                         >
                           {task.title}
                         </p>
@@ -283,14 +318,19 @@ function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask, onOpenAtta
                     <td className="px-4 py-3">
                       <div className="relative">
                         <button
-                          onClick={() => setExpandedRow(expandedRow === task.id ? null : task.id)}
-                          className="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg hover:bg-neutral-100 transition-colors"
+                          onClick={() => canModifyTask(task) && setExpandedRow(expandedRow === task.id ? null : task.id)}
+                          disabled={!canModifyTask(task)}
+                          className={`flex items-center space-x-2 px-2.5 py-1.5 rounded-lg transition-colors ${
+                            canModifyTask(task) 
+                              ? 'hover:bg-neutral-100 cursor-pointer' 
+                              : 'cursor-not-allowed opacity-60'
+                          }`}
                         >
                           <div className={`w-2 h-2 rounded-full ${statusConfig[task.status].color}`}></div>
                           <span className={`text-xs font-medium ${statusConfig[task.status].textColor}`}>
                             {statusConfig[task.status].label}
                           </span>
-                          <ChevronDown size={12} className="text-neutral-400" />
+                          {canModifyTask(task) && <ChevronDown size={12} className="text-neutral-400" />}
                         </button>
 
                         {/* Dropdown de Estados */}
@@ -396,34 +436,41 @@ function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask, onOpenAtta
                     {/* Acciones */}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end space-x-2">
-                        <button
-                          onClick={() => onEditTask(task)}
-                          className="p-1.5 hover:bg-primary-100 rounded transition-colors"
-                          title="Editar"
-                        >
-                          <Edit2 size={14} className="text-primary-600" />
-                        </button>
-                        {onOpenAttachments && (
-                          <button
-                            onClick={() => onOpenAttachments(task)}
-                            className="p-1.5 hover:bg-blue-100 rounded transition-colors relative"
-                            title="Adjuntar archivos"
-                          >
-                            <Paperclip size={14} className="text-blue-600" />
-                            {task.attachments?.length > 0 && (
-                              <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                                {task.attachments.length}
-                              </span>
+                        {canModifyTask(task) && (
+                          <>
+                            <button
+                              onClick={() => onEditTask(task)}
+                              className="p-1.5 hover:bg-primary-100 rounded transition-colors"
+                              title="Editar"
+                            >
+                              <Edit2 size={14} className="text-primary-600" />
+                            </button>
+                            {onOpenAttachments && (
+                              <button
+                                onClick={() => onOpenAttachments(task)}
+                                className="p-1.5 hover:bg-blue-100 rounded transition-colors relative"
+                                title="Adjuntar archivos"
+                              >
+                                <Paperclip size={14} className="text-blue-600" />
+                                {task.attachments?.length > 0 && (
+                                  <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                                    {task.attachments.length}
+                                  </span>
+                                )}
+                              </button>
                             )}
-                          </button>
+                            <button
+                              onClick={() => onDeleteTask(task)}
+                              className="p-1.5 hover:bg-red-100 rounded transition-colors"
+                              title="Eliminar"
+                            >
+                              <Trash2 size={14} className="text-red-600" />
+                            </button>
+                          </>
                         )}
-                        <button
-                          onClick={() => onDeleteTask(task)}
-                          className="p-1.5 hover:bg-red-100 rounded transition-colors"
-                          title="Eliminar"
-                        >
-                          <Trash2 size={14} className="text-red-600" />
-                        </button>
+                        {!canModifyTask(task) && (
+                          <span className="text-xs text-neutral-400 italic">Solo lectura</span>
+                        )}
                       </div>
                     </td>
                   </tr>

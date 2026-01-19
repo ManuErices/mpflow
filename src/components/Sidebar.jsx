@@ -86,12 +86,12 @@ function Sidebar({
 
       {/* Sidebar */}
       <aside 
-        className={`bg-white border-r border-neutral-200 transition-all duration-300 flex flex-col fixed lg:sticky lg:top-0 h-screen z-40 ${
+        className={`bg-white border-r border-neutral-200 transition-all duration-300 flex flex-col fixed lg:sticky lg:top-0 inset-y-0 left-0 z-40 h-screen ${
           isOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:w-16'
         }`}
       >
         {/* Header */}
-        <div className="h-14 flex items-center justify-between px-4 border-b border-neutral-100 flex-shrink-0">
+        <div className="h-14 flex items-center justify-between px-4 border-b border-neutral-100">
           {isOpen && (
             <div className="flex items-center space-x-2">
               <div className="w-7 h-7 bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg flex items-center justify-center shadow-sm">
@@ -108,13 +108,8 @@ function Sidebar({
           </button>
         </div>
 
-        {/* Navigation - Con scroll interno */}
-        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto"
-             style={{ 
-               maxHeight: 'calc(100vh - 3.5rem - 7rem)', // Restar altura del header y footer
-               minHeight: '0' // Importante para que funcione el scroll
-             }}
-        >
+        {/* Navigation */}
+        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon
             const isActive = currentView === item.id || (item.id === 'board' && ['board', 'list'].includes(currentView))
@@ -265,9 +260,9 @@ function Sidebar({
           )}
         </nav>
 
-        {/* User Profile con Logout - Siempre visible al final */}
+        {/* User Profile con Logout */}
         {isOpen && (
-          <div className="p-3 border-t border-neutral-100 space-y-2 flex-shrink-0 bg-white">
+          <div className="p-3 border-t border-neutral-100 space-y-2">
             <div className="flex items-center space-x-2.5">
               <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg flex items-center justify-center shadow-sm">
                 <span className="text-white font-semibold text-xs">
