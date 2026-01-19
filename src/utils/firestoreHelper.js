@@ -309,19 +309,32 @@ export const subscribeToMessages = (userId, callback) => {
 export const sendMessage = async (messageData, senderId) => {
   try {
     const membersSnapshot = await getDocs(collection(db, 'teamMembers'))
-    const receiver = membersSnapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .find(m => m.name === messageData.receiverName)
+    const allMembers = membersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    
+    // 🆕 VALIDAR EL EMISOR PRIMERO
+    const sender = allMembers.find(m => m.userId === senderId)
+    
+    if (!sender) {
+      console.error('❌ El emisor no está registrado en teamMembers con userId:', senderId)
+      throw new Error(`⚠️ Tu perfil no está configurado correctamente para enviar mensajes.\n\n🔧 Solución:\nUn administrador debe:\n1. Ir a la vista "Equipo"\n2. Buscar tu perfil en la lista\n3. Editar tu perfil\n4. Agregar tu email de cuenta en el campo "Email de Usuario Registrado"`)
+    }
+    
+    console.log('✅ Emisor encontrado:', sender.name, '(userId:', senderId, ')')
+    
+    // Validar el receptor
+    const receiver = allMembers.find(m => m.name === messageData.receiverName)
 
     if (!receiver) {
       console.error('❌ No se encontró el receptor:', messageData.receiverName)
-      throw new Error('Receptor no encontrado')
+      throw new Error(`No se encontró el contacto "${messageData.receiverName}"`)
     }
 
     if (!receiver.userId) {
       console.error('❌ El receptor no tiene userId:', receiver)
-      throw new Error('El receptor no tiene cuenta de usuario. Agrega el campo userId en Firestore.')
+      throw new Error(`⚠️ El contacto "${messageData.receiverName}" no tiene un email de usuario asociado.\n\nPara poder enviar mensajes:\n1. Ve a la vista "Equipo"\n2. Edita este miembro\n3. Agrega su email de usuario registrado en el campo "Email de Usuario Registrado"`)
     }
+
+    console.log('✅ Receptor encontrado:', receiver.name, '(userId:', receiver.userId, ')')
 
     const receiverUserId = receiver.userId
 
