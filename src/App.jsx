@@ -696,22 +696,24 @@ const handleSendMessage = async (receiverName, message) => {
         tasks={tasks}
       />
 
-      <div className="flex-1 flex flex-col">
-        <TopBar 
-          currentView={currentView}
-          onViewChange={setCurrentView}
-          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          onAddTask={handleAddTask}
-          notificationCount={unreadNotificationCount}
-          onNotificationClick={() => setShowNotificationPanel(!showNotificationPanel)}
-          unreadMessagesCount={unreadMessagesCount}
-          onMessagesClick={() => setShowChatPanel(!showChatPanel)}
-          teamMembers={teamMembers}
-          selectedMember={selectedMemberFilter}
-          onMemberFilter={setSelectedMemberFilter}
-          onOpenNotificationSettings={handleOpenNotificationSettings}
-          notificationsEnabled={notificationsEnabled}
-        />
+      <div className="flex-1 flex flex-col min-h-screen">
+        <div className="sticky top-0 z-50">
+          <TopBar 
+            currentView={currentView}
+            onViewChange={setCurrentView}
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            onAddTask={handleAddTask}
+            notificationCount={unreadNotificationCount}
+            onNotificationClick={() => setShowNotificationPanel(!showNotificationPanel)}
+            unreadMessagesCount={unreadMessagesCount}
+            onMessagesClick={() => setShowChatPanel(!showChatPanel)}
+            teamMembers={teamMembers}
+            selectedMember={selectedMemberFilter}
+            onMemberFilter={setSelectedMemberFilter}
+            onOpenNotificationSettings={handleOpenNotificationSettings}
+            notificationsEnabled={notificationsEnabled}
+          />
+        </div>
 
         <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
           {currentView === 'dashboard' && (
