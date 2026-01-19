@@ -158,7 +158,7 @@ export const deleteTask = async (taskId) => {
 
 export const getMembers = async (userId) => {
   try {
-    const q = query(collection(db, 'members'))
+    const q = query(collection(db, 'teamMembers'))
     const snapshot = await getDocs(q)
     const members = snapshot.docs.map(doc => ({
       id: doc.id,
@@ -173,7 +173,7 @@ export const getMembers = async (userId) => {
 }
 
 export const subscribeToMembers = (userId, callback) => {
-  const q = query(collection(db, 'members'))
+  const q = query(collection(db, 'teamMembers'))
 
   return onSnapshot(q, (snapshot) => {
     const members = snapshot.docs.map(doc => ({
@@ -186,7 +186,7 @@ export const subscribeToMembers = (userId, callback) => {
 
 export const addMember = async (memberData) => {
   try {
-    const docRef = await addDoc(collection(db, 'members'), {
+    const docRef = await addDoc(collection(db, 'teamMembers'), {
       ...memberData,
       createdAt: new Date()
     })
@@ -199,7 +199,7 @@ export const addMember = async (memberData) => {
 
 export const updateMember = async (memberId, memberData) => {
   try {
-    const memberRef = doc(db, 'members', memberId)
+    const memberRef = doc(db, 'teamMembers', memberId)
     await updateDoc(memberRef, memberData)
   } catch (error) {
     console.error('Error al actualizar miembro:', error)
@@ -209,7 +209,7 @@ export const updateMember = async (memberId, memberData) => {
 
 export const deleteMember = async (memberId) => {
   try {
-    await deleteDoc(doc(db, 'members', memberId))
+    await deleteDoc(doc(db, 'teamMembers', memberId))
   } catch (error) {
     console.error('Error al eliminar miembro:', error)
     throw error
@@ -304,7 +304,7 @@ export const subscribeToMessages = (userId, callback) => {
 
 export const sendMessage = async (messageData, senderId) => {
   try {
-    const membersSnapshot = await getDocs(collection(db, 'members'))
+    const membersSnapshot = await getDocs(collection(db, 'teamMembers'))
     const receiver = membersSnapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() }))
       .find(m => m.name === messageData.receiverName)
