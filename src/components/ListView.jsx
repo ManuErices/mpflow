@@ -265,7 +265,10 @@ function ListView({ tasks = {}, onEditTask, onDeleteTask, onMoveTask, onOpenAtta
                     {/* Tarea */}
                     <td className="px-4 py-3">
                       <div className="max-w-xs">
-                        <p className="text-sm font-medium text-neutral-900 truncate">
+                        <p 
+                          onClick={() => onEditTask(task)}
+                          className="text-sm font-medium text-neutral-900 truncate cursor-pointer hover:text-primary-600 transition-colors"
+                        >
                           {task.title}
                         </p>
                         {task.description && (
