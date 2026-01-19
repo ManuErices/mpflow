@@ -371,3 +371,37 @@ export const sendMessage = async (messageData, senderId) => {
     throw error
   }
 }
+
+// ============================================
+// MARCAR MENSAJES COMO LEÍDOS
+// ============================================
+
+export const markMessagesAsRead = async (userId, contactName) => {
+  try {
+    console.log('📖 Marcando mensajes como leídos:', { userId, contactName })
+    
+    // Buscar mensajes del contacto que son para el usuario actual y no están leídos
+    const q = query(
+      collection(db, 'messages'),
+      where('userId', '==', userId),
+      where('senderName', '==', contactName),
+      where('read', '==', false)
+    )
+    
+    const snapshot = await getDocs(q)
+    console.log(`📝 Encontrados ${snapshot.docs.length} mensajes sin leer de ${contactName}`)
+    
+    // Marcar cada mensaje como leído
+    const updatePromises = snapshot.docs.map(doc => 
+      updateDoc(doc.ref, { read: true })
+    )
+    
+    await Promise.all(updatePromises)
+    console.log(`✅ Mensajes marcados como leídos`)
+    
+    return snapshot.docs.length
+  } catch (error) {
+    console.error('❌ Error al marcar mensajes como leídos:', error)
+    throw error
+  }
+}
