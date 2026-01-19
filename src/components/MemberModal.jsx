@@ -7,7 +7,8 @@ function MemberModal({ isOpen, onClose, onSave, member }) {
     role: '',
     email: '',
     phone: '',
-    avatar: ''
+    avatar: '',
+    userId: ''
   })
 
   const [errors, setErrors] = useState({})
@@ -19,7 +20,8 @@ function MemberModal({ isOpen, onClose, onSave, member }) {
         role: member.role || '',
         email: member.email || '',
         phone: member.phone || '',
-        avatar: member.avatar || ''
+        avatar: member.avatar || '',
+        userId: member.userId || ''
       })
     } else {
       setFormData({
@@ -27,7 +29,8 @@ function MemberModal({ isOpen, onClose, onSave, member }) {
         role: 'Colaborador',
         email: '',
         phone: '',
-        avatar: ''
+        avatar: '',
+        userId: ''
       })
     }
     setErrors({})
@@ -194,6 +197,27 @@ function MemberModal({ isOpen, onClose, onSave, member }) {
                 className="w-full pl-10 pr-3 py-2 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
               />
             </div>
+          </div>
+
+          {/* User ID (Email del usuario registrado) - NUEVO */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+              Email de Usuario Registrado (para chat) 💬
+            </label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" size={16} />
+              <input
+                type="email"
+                name="userId"
+                value={formData.userId}
+                onChange={handleChange}
+                placeholder="email@ejemplo.com (debe estar registrado)"
+                className="w-full pl-10 pr-3 py-2 border border-blue-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all bg-white"
+              />
+            </div>
+            <p className="text-xs text-blue-700 mt-1.5">
+              ⚠️ Este email debe estar registrado en la aplicación para poder enviar/recibir mensajes.
+            </p>
           </div>
 
           {/* Buttons */}

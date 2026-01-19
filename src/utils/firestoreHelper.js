@@ -311,12 +311,12 @@ export const sendMessage = async (messageData, senderId) => {
 
     if (!receiver) {
       console.error('❌ No se encontró el receptor:', messageData.receiverName)
-      throw new Error('Receptor no encontrado')
+      throw new Error(`No se encontró el contacto "${messageData.receiverName}"`)
     }
 
     if (!receiver.userId) {
       console.error('❌ El receptor no tiene userId:', receiver)
-      throw new Error('El receptor no tiene cuenta de usuario. Agrega el campo userId en Firestore.')
+      throw new Error(`⚠️ El contacto "${messageData.receiverName}" no tiene un email de usuario asociado.\n\nPara poder enviar mensajes:\n1. Ve a la vista "Equipo"\n2. Edita este miembro\n3. Agrega su email de usuario registrado en el campo "Email de Usuario Registrado"`)
     }
 
     const receiverUserId = receiver.userId
