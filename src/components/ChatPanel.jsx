@@ -369,13 +369,13 @@ function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessag
       )}
 
       {/* Task Reference Modal */}
-      {showTaskModal && (
-        <TaskReferenceModal
-          tasks={Object.values(tasks).flat()}
-          onClose={() => setShowTaskModal(false)}
-          onSelectTask={handleSelectTask}
-        />
-      )}
+      <TaskReferenceModal
+        isOpen={showTaskModal}
+        tasks={tasks}
+        onClose={() => setShowTaskModal(false)}
+        onSelectTask={handleSelectTask}
+        selectedMember={selectedContact}
+      />
     </>
   )
 }
