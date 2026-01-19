@@ -86,7 +86,7 @@ function Sidebar({
 
       {/* Sidebar */}
       <aside 
-        className={`bg-white border-r border-neutral-200 transition-all duration-300 flex flex-col fixed lg:relative h-screen z-40 ${
+        className={`bg-white border-r border-neutral-200 transition-all duration-300 flex flex-col fixed lg:sticky lg:top-0 h-screen z-40 ${
           isOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:w-16'
         }`}
       >
