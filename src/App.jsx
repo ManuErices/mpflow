@@ -758,24 +758,28 @@ const handleSendMessage = async (receiverName, message) => {
             />
           )}
 
-          {currentView === 'team' && (
-            <TeamView
-              tasks={getFilteredTasks()}
-              projects={projects}
-              onEditTask={handleEditTask}
-              teamMembers={teamMembers}
-              onAddMember={handleAddMember}
-              onEditMember={handleEditMember}
-              onDeleteMember={handleDeleteMember}
-            />
-          )}
-          
+            {currentView === 'team' && (
+              <TeamView
+                tasks={getFilteredTasks()}
+                projects={projects}
+                onEditTask={handleEditTask}
+                onDeleteTask={handleDeleteTask}
+                teamMembers={teamMembers}
+                onAddMember={handleAddMember}
+                onEditMember={handleEditMember}
+                onDeleteMember={handleDeleteMember}
+                currentUserName={currentUserName}  {/* ← AGREGAR ESTA LÍNEA */}
+              />
+            )}
+                      
           {currentView === 'calendar' && (
             <CalendarView
               tasks={getFilteredTasks()}
               projects={projects}
               onEditTask={handleEditTask}
               onAddTask={handleAddTask}
+              onDeleteTask={handleDeleteTask}
+              currentUserName={currentUserName}  {/* ← AGREGAR ESTA LÍNEA */}
             />
           )}
         </main>

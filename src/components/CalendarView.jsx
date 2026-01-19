@@ -1,12 +1,28 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, Edit2, Trash2 } from 'lucide-react'
 
-function CalendarView({ tasks = {}, projects, onEditTask, onAddTask }) {
+function CalendarView({ tasks = {}, projects, onEditTask, onAddTask, onDeleteTask, currentUserName }) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(null)
 
   // Obtener todas las tareas
   const allTasks = Object.values(tasks).flat()
+
+  // Función para verificar si el usuario puede modificar una tarea
+  const canModifyTask = (task) => {
+    // El solicitante siempre puede modificar
+    if (task.requestedBy === currentUserName) return true
+    
+    // Si tiene asignados múltiples
+    if (task.assignees && Array.isArray(task.assignees)) {
+      return task.assignees.includes(currentUserName)
+    }
+    
+    // Si tiene un solo asignado
+    if (task.assignee === currentUserName) return true
+    
+    return false
+  }
 
   // Funciones de fecha
   const getDaysInMonth = (date) => {
@@ -214,18 +230,45 @@ function CalendarView({ tasks = {}, projects, onEditTask, onAddTask }) {
                     getSelectedDateTasks().map((task) => {
                       const status = statusConfig[task.status]
                       const priority = priorityConfig[task.priority]
+                      const canModify = canModifyTask(task)
 
                       return (
                         <div
                           key={task.id}
-                          onClick={() => onEditTask(task)}
-                          className={`p-3 border-l-2 ${priority.color} ${priority.bg} rounded-lg cursor-pointer hover:shadow-md transition-all`}
+                          className={`p-3 border-l-2 ${priority.color} ${priority.bg} rounded-lg hover:shadow-md transition-all group`}
                         >
                           <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-semibold text-sm text-neutral-900 flex-1">
+                            <h4 className="font-semibold text-sm text-neutral-900 flex-1 cursor-pointer hover:text-primary-600"
+                                onClick={() => canModify && onEditTask(task)}>
                               {task.title}
                             </h4>
-                            <div className={`w-2 h-2 rounded-full ${status.color} flex-shrink-0 mt-1`}></div>
+                            <div className="flex items-center space-x-1">
+                              {canModify && (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      onEditTask(task)
+                                    }}
+                                    className="p-1 hover:bg-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Editar"
+                                  >
+                                    <Edit2 size={12} className="text-primary-600" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      onDeleteTask(task)
+                                    }}
+                                    className="p-1 hover:bg-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Eliminar"
+                                  >
+                                    <Trash2 size={12} className="text-red-600" />
+                                  </button>
+                                </>
+                              )}
+                              <div className={`w-2 h-2 rounded-full ${status.color} flex-shrink-0 mt-1`}></div>
+                            </div>
                           </div>
                           <p className="text-xs text-neutral-600 line-clamp-2 mb-2">
                             {task.description}
