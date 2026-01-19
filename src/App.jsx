@@ -768,7 +768,7 @@ const handleSendMessage = async (receiverName, message) => {
                 onAddMember={handleAddMember}
                 onEditMember={handleEditMember}
                 onDeleteMember={handleDeleteMember}
-                currentUserName={currentUserName}  {/* ← AGREGAR ESTA LÍNEA */}
+                currentUserName={currentUserName}
               />
             )}
                       
@@ -779,7 +779,7 @@ const handleSendMessage = async (receiverName, message) => {
               onEditTask={handleEditTask}
               onAddTask={handleAddTask}
               onDeleteTask={handleDeleteTask}
-              currentUserName={currentUserName}  {/* ← AGREGAR ESTA LÍNEA */}
+              currentUserName={currentUserName}
             />
           )}
         </main>
