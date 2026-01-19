@@ -94,7 +94,7 @@ function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessag
 
   // NUEVO: Componente para indicador de presencia
   const StatusIndicator = ({ userName, size = 'sm' }) => {
-    const status = getUserStatus(presences, userName, teamMembers)
+    const status = getUserStatus(presences, userName)
     const isOnline = status === 'online'
     
     const sizeClasses = {
@@ -162,7 +162,7 @@ function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessag
                   {selectedContact && (
                     <div className="flex items-center space-x-1">
                       <p className="text-xs text-primary-100">
-                        {getUserStatus(presences, selectedContact.name, teamMembers) === 'online' ? '🟢 En línea' : '🔴 Desconectado'}
+                        {getUserStatus(presences, selectedContact.name) === 'online' ? '🟢 En línea' : '🔴 Desconectado'}
                       </p>
                     </div>
                   )}
@@ -225,7 +225,7 @@ function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessag
                   filteredContacts.map(contact => {
                     const unreadCount = getUnreadCount(contact.name)
                     const lastMsg = getLastMessage(contact.name)
-                    const isOnline = getUserStatus(presences, contact.name, teamMembers) === 'online'
+                    const isOnline = getUserStatus(presences, contact.name) === 'online'
 
                     return (
                       <button

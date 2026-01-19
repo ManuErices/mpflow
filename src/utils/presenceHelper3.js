@@ -72,31 +72,16 @@ export const subscribeToPresence = (callback) => {
 
 /**
  * Obtener estado de un usuario específico por su nombre
- * ACTUALIZADO: Busca por userId del miembro
- * @param {Object} presences - Objeto de presencias (userId -> {state, userName})
- * @param {string} memberName - Nombre del miembro
- * @param {Array} members - Array de miembros del equipo (opcional)
+ * @param {Object} presences - Objeto de presencias
+ * @param {string} userName - Nombre del usuario
  * @returns {string} - 'online' o 'offline'
  */
-export const getUserStatus = (presences, memberName, members = []) => {
-  if (!presences || !memberName) return 'offline'
+export const getUserStatus = (presences, userName) => {
+  if (!presences || !userName) return 'offline'
   
-  // Estrategia 1: Si tenemos la lista de miembros, buscar por userId
-  if (members.length > 0) {
-    const member = members.find(m => m.name === memberName)
-    
-    if (member && member.userId) {
-      // Buscar directamente por userId en presences
-      const userPresence = presences[member.userId]
-      if (userPresence) {
-        return userPresence.state || 'offline'
-      }
-    }
-  }
-  
-  // Estrategia 2 (Fallback): Buscar por nombre en todas las presencias
+  // Buscar el usuario por nombre
   const userEntry = Object.values(presences).find(
-    presence => presence.userName === memberName
+    presence => presence.userName === userName
   )
   
   return userEntry?.state || 'offline'
