@@ -272,14 +272,18 @@ export const subscribeToMessages = (userId, callback) => {
         timestamp: data.timestamp?.toDate().toISOString() || new Date().toISOString()
       }
       
-      const currentUserName = data.senderName || data.sender
-      const otherUserName = data.receiverName || data.receiver
+      // CORREGIDO: Nombres correctos
+      const senderName = data.senderName || data.sender    // Nombre del EMISOR
+      const receiverName = data.receiverName || data.receiver  // Nombre del RECEPTOR
       
+      // Determinar quién es el contacto (la otra persona en la conversación)
       let contactName
       if (data.senderId === userId) {
-        contactName = otherUserName
+        // Si YO envié el mensaje → el contacto es el RECEPTOR
+        contactName = receiverName
       } else {
-        contactName = currentUserName
+        // Si YO recibí el mensaje → el contacto es el EMISOR
+        contactName = senderName
       }
       
       console.log('👥 Conversación con:', contactName)
@@ -305,27 +309,18 @@ export const subscribeToMessages = (userId, callback) => {
 export const sendMessage = async (messageData, senderId) => {
   try {
     const membersSnapshot = await getDocs(collection(db, 'teamMembers'))
-    const allMembers = membersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-    
-    // 🆕 VALIDAR EL EMISOR PRIMERO
-    const sender = allMembers.find(m => m.userId === senderId)
-    
-    if (!sender) {
-      console.error('❌ El emisor no está registrado en teamMembers con userId:', senderId)
-      throw new Error(`⚠️ Tu perfil no está configurado correctamente para enviar mensajes.\n\n🔧 Solución:\nUn administrador debe:\n1. Ir a la vista "Equipo"\n2. Buscar tu perfil en la lista\n3. Editar tu perfil\n4. Agregar tu email de cuenta (${senderId}) en el campo "Email de Usuario Registrado"`)
-    }
-    
-    // Validar el receptor
-    const receiver = allMembers.find(m => m.name === messageData.receiverName)
+    const receiver = membersSnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .find(m => m.name === messageData.receiverName)
 
     if (!receiver) {
       console.error('❌ No se encontró el receptor:', messageData.receiverName)
-      throw new Error(`No se encontró el contacto "${messageData.receiverName}"`)
+      throw new Error('Receptor no encontrado')
     }
 
     if (!receiver.userId) {
       console.error('❌ El receptor no tiene userId:', receiver)
-      throw new Error(`⚠️ El contacto "${messageData.receiverName}" no tiene un email de usuario asociado.\n\nPara poder enviar mensajes:\n1. Ve a la vista "Equipo"\n2. Edita este miembro\n3. Agrega su email de usuario registrado en el campo "Email de Usuario Registrado"`)
+      throw new Error('El receptor no tiene cuenta de usuario. Agrega el campo userId en Firestore.')
     }
 
     const receiverUserId = receiver.userId
@@ -373,40 +368,6 @@ export const sendMessage = async (messageData, senderId) => {
     return senderDoc.id
   } catch (error) {
     console.error('❌ Error al enviar mensaje:', error)
-    throw error
-  }
-}
-
-// ============================================
-// MARCAR MENSAJES COMO LEÍDOS
-// ============================================
-
-export const markMessagesAsRead = async (userId, contactName) => {
-  try {
-    console.log('📖 Marcando mensajes como leídos:', { userId, contactName })
-    
-    // Buscar mensajes del contacto que son para el usuario actual y no están leídos
-    const q = query(
-      collection(db, 'messages'),
-      where('userId', '==', userId),
-      where('senderName', '==', contactName),
-      where('read', '==', false)
-    )
-    
-    const snapshot = await getDocs(q)
-    console.log(`📝 Encontrados ${snapshot.docs.length} mensajes sin leer de ${contactName}`)
-    
-    // Marcar cada mensaje como leído
-    const updatePromises = snapshot.docs.map(doc => 
-      updateDoc(doc.ref, { read: true })
-    )
-    
-    await Promise.all(updatePromises)
-    console.log(`✅ Mensajes marcados como leídos`)
-    
-    return snapshot.docs.length
-  } catch (error) {
-    console.error('❌ Error al marcar mensajes como leídos:', error)
     throw error
   }
 }
