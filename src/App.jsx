@@ -35,7 +35,7 @@ import {
   getTasks, addTask, updateTask, deleteTask,
   getMembers, addMember, updateMember, deleteMember,
   subscribeToProjects, subscribeToTasks, subscribeToMembers,
-  sendMessage, subscribeToMessages
+  sendMessage, subscribeToMessages, markMessagesAsRead
 } from './utils/firestoreHelper'
 
 // Función para generar ID único
@@ -342,6 +342,19 @@ const handleSendMessage = async (receiverName, message) => {
     showToast('Error al enviar mensaje: ' + error.message, 'error')
   }
 }
+
+  // Marcar mensajes como leídos
+  const handleMarkMessagesAsRead = async (contactName) => {
+    try {
+      if (!user || !contactName) return
+      
+      console.log('📖 Marcando mensajes como leídos de:', contactName)
+      await markMessagesAsRead(user.uid, contactName)
+      console.log('✅ Mensajes marcados como leídos')
+    } catch (error) {
+      console.error('❌ Error al marcar mensajes como leídos:', error)
+    }
+  }
 
   // Contar mensajes no leídos
   const getUnreadMessagesCount = () => {
@@ -696,24 +709,22 @@ const handleSendMessage = async (receiverName, message) => {
         tasks={tasks}
       />
 
-      <div className="flex-1 flex flex-col min-h-screen">
-        <div className="sticky top-0 z-50">
-          <TopBar 
-            currentView={currentView}
-            onViewChange={setCurrentView}
-            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-            onAddTask={handleAddTask}
-            notificationCount={unreadNotificationCount}
-            onNotificationClick={() => setShowNotificationPanel(!showNotificationPanel)}
-            unreadMessagesCount={unreadMessagesCount}
-            onMessagesClick={() => setShowChatPanel(!showChatPanel)}
-            teamMembers={teamMembers}
-            selectedMember={selectedMemberFilter}
-            onMemberFilter={setSelectedMemberFilter}
-            onOpenNotificationSettings={handleOpenNotificationSettings}
-            notificationsEnabled={notificationsEnabled}
-          />
-        </div>
+      <div className="flex-1 flex flex-col">
+        <TopBar 
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          onAddTask={handleAddTask}
+          notificationCount={unreadNotificationCount}
+          onNotificationClick={() => setShowNotificationPanel(!showNotificationPanel)}
+          unreadMessagesCount={unreadMessagesCount}
+          onMessagesClick={() => setShowChatPanel(!showChatPanel)}
+          teamMembers={teamMembers}
+          selectedMember={selectedMemberFilter}
+          onMemberFilter={setSelectedMemberFilter}
+          onOpenNotificationSettings={handleOpenNotificationSettings}
+          notificationsEnabled={notificationsEnabled}
+        />
 
         <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
           {currentView === 'dashboard' && (
@@ -847,6 +858,7 @@ const handleSendMessage = async (receiverName, message) => {
         teamMembers={teamMembers}
         tasks={tasks}
         onSendMessage={handleSendMessage}
+        onMarkAsRead={handleMarkMessagesAsRead}
         conversations={conversations}
         presences={presences}
       />

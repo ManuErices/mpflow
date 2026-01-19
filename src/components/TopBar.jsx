@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Calendar as CalendarIcon, UserCircle, Plus, Bell, Filter, X, Users, MessageCircle } from 'lucide-react'
+import { LayoutGrid, List, Calendar as CalendarIcon, UserCircle, Plus, Bell, BellRing, AlertCircle, Filter, X, Users, MessageCircle } from 'lucide-react'
 import { useState } from 'react'
 
 function TopBar({ 
@@ -185,16 +185,26 @@ function TopBar({
           {/* Desktop Notifications Settings */}
           <button
             onClick={onOpenNotificationSettings}
-            className={`p-2 rounded-lg transition-colors relative ${
+            className={`p-2 rounded-lg transition-all relative ${
               notificationsEnabled 
-                ? 'hover:bg-primary-50 text-primary-600' 
-                : 'hover:bg-neutral-100 text-neutral-600'
+                ? 'hover:bg-emerald-50 bg-emerald-100 border border-emerald-300' 
+                : 'hover:bg-amber-50 bg-amber-100 border border-amber-300 animate-pulse'
             }`}
-            title={notificationsEnabled ? "Notificaciones de escritorio activas" : "Activar notificaciones de escritorio"}
+            title={notificationsEnabled ? "Notificaciones de escritorio activas ✓" : "⚠️ Activar notificaciones de escritorio"}
           >
-            <Bell size={20} />
+            {notificationsEnabled ? (
+              <BellRing size={20} className="text-emerald-600" />
+            ) : (
+              <AlertCircle size={20} className="text-amber-600" />
+            )}
             {notificationsEnabled && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full"></span>
+              <span className="absolute top-0 right-0 w-2 h-2 bg-emerald-500 rounded-full shadow-lg"></span>
+            )}
+            {!notificationsEnabled && (
+              <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+              </span>
             )}
           </button>
         </div>

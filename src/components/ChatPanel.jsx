@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import TaskReferenceModal from './TaskReferenceModal'
 import { getUserStatus } from '../utils/presenceHelper'
 
-function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessage, conversations = {}, presences = {} }) {
+function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessage, onMarkAsRead, conversations = {}, presences = {} }) {
   const { user } = useAuth()
   const [selectedContact, setSelectedContact] = useState(null)
   const [message, setMessage] = useState('')
@@ -20,6 +20,18 @@ function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessag
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [conversations, selectedContact, isMinimized])
+
+  // Marcar mensajes como leídos cuando se abre una conversación
+  useEffect(() => {
+    if (selectedContact && onMarkAsRead && !isMinimized) {
+      // Pequeño delay para asegurar que los mensajes estén visibles
+      const timer = setTimeout(() => {
+        onMarkAsRead(selectedContact.name)
+      }, 500)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [selectedContact, onMarkAsRead, isMinimized])
 
   const filteredContacts = teamMembers.filter(member =>
     member.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -369,13 +381,13 @@ function ChatPanel({ isOpen, onClose, teamMembers = [], tasks = {}, onSendMessag
       )}
 
       {/* Task Reference Modal */}
-      <TaskReferenceModal
-        isOpen={showTaskModal}
-        tasks={tasks}
-        onClose={() => setShowTaskModal(false)}
-        onSelectTask={handleSelectTask}
-        selectedMember={selectedContact}
-      />
+      {showTaskModal && (
+        <TaskReferenceModal
+          tasks={Object.values(tasks).flat()}
+          onClose={() => setShowTaskModal(false)}
+          onSelectTask={handleSelectTask}
+        />
+      )}
     </>
   )
 }
