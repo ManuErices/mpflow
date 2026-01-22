@@ -151,39 +151,41 @@ function TeamView({ tasks = {}, projects, onEditTask, onDeleteTask, teamMembers 
                         </div>
                       </div>
                       
-                      <div className="relative group">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation()
-                          }}
-                          className="p-1 hover:bg-neutral-100 rounded transition-colors"
-                        >
-                          <MoreVertical size={16} className="text-neutral-400" />
-                        </button>
-                        
-                        <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-10 min-w-[140px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                          <button
+                      {currentUserName === "Manuel Erices" && (
+                        <div className="relative group">
+                          <button 
                             onClick={(e) => {
                               e.stopPropagation()
-                              onEditMember(member)
                             }}
-                            className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                            className="p-1 hover:bg-neutral-100 rounded transition-colors"
                           >
-                            <Edit2 size={14} />
-                            <span>Editar</span>
+                            <MoreVertical size={16} className="text-neutral-400" />
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onDeleteMember(member)
-                            }}
-                            className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 size={14} />
-                            <span>Eliminar</span>
-                          </button>
+                          
+                          <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-10 min-w-[140px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onEditMember(member)
+                              }}
+                              className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                            >
+                              <Edit2 size={14} />
+                              <span>Editar</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onDeleteMember(member)
+                              }}
+                              className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 size={14} />
+                              <span>Eliminar</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
 
                     {/* Contacto */}
