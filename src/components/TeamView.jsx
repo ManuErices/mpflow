@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { User, Mail, Phone, Briefcase, Plus, Edit2, Trash2, Search, CheckCircle, Clock, MoreVertical } from 'lucide-react'
 
-function TeamView({ tasks = {}, projects, onEditTask, onDeleteTask, teamMembers = [], onAddMember, onEditMember, onDeleteMember, currentUserName }) {
+function TeamView({ tasks = {}, projects, onEditTask, teamMembers = [], onAddMember, onEditMember, onDeleteMember }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedMember, setSelectedMember] = useState(null)
 
@@ -14,22 +14,6 @@ function TeamView({ tasks = {}, projects, onEditTask, onDeleteTask, teamMembers 
 
   // Obtener todas las tareas
   const allTasks = Object.values(tasks).flat()
-
-  // Función para verificar si el usuario puede modificar una tarea
-  const canModifyTask = (task) => {
-    // 1. El solicitante puede modificar
-    if (task.requestedBy === currentUserName) return true
-    
-    // 2. Si tiene un solo asignado (assignee)
-    if (task.assignee === currentUserName) return true
-    
-    // 3. Si tiene múltiples asignados (assignees)
-    if (task.assignees && Array.isArray(task.assignees) && task.assignees.includes(currentUserName)) {
-      return true
-    }
-    
-    return false
-  }
 
   // Calcular estadísticas por miembro
   const getMemberStats = (memberName) => {
@@ -90,13 +74,15 @@ function TeamView({ tasks = {}, projects, onEditTask, onDeleteTask, teamMembers 
               {teamMembers.length} {teamMembers.length === 1 ? 'miembro' : 'miembros'} en el equipo
             </p>
           </div>
-          <button 
-            onClick={onAddMember}
-            className="flex items-center space-x-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium shadow-sm"
-          >
-            <Plus size={16} strokeWidth={2.5} />
-            <span>Agregar Miembro</span>
-          </button>
+          {currentUserName === "Manuel Erices" && (
+            <button 
+              onClick={onAddMember}
+              className="flex items-center space-x-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium shadow-sm"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+              <span>Agregar Miembro</span>
+            </button>
+          )}
         </div>
 
         {/* Search */}
@@ -123,7 +109,7 @@ function TeamView({ tasks = {}, projects, onEditTask, onDeleteTask, teamMembers 
                   ? 'No hay miembros en el equipo' 
                   : 'No se encontraron miembros'}
               </p>
-              {teamMembers.length === 0 && (
+              {teamMembers.length === 0 && currentUserName === "Manuel Erices" && (
                 <button
                   onClick={onAddMember}
                   className="mt-3 text-sm text-primary-600 hover:text-primary-700 font-medium"
@@ -260,20 +246,24 @@ function TeamView({ tasks = {}, projects, onEditTask, onDeleteTask, teamMembers 
                 </div>
 
                 <div className="flex space-x-2">
-                  <button
-                    onClick={() => onEditMember(selectedMember)}
-                    className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
-                    title="Editar miembro"
-                  >
-                    <Edit2 size={16} className="text-neutral-600" />
-                  </button>
-                  <button
-                    onClick={() => onDeleteMember(selectedMember)}
-                    className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                    title="Eliminar miembro"
-                  >
-                    <Trash2 size={16} className="text-red-600" />
-                  </button>
+                  {currentUserName === "Manuel Erices" && (
+                    <>
+                      <button
+                        onClick={() => onEditMember(selectedMember)}
+                        className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+                        title="Editar miembro"
+                      >
+                        <Edit2 size={16} className="text-neutral-600" />
+                      </button>
+                      <button
+                        onClick={() => onDeleteMember(selectedMember)}
+                        className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                        title="Eliminar miembro"
+                      >
+                        <Trash2 size={16} className="text-red-600" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -342,53 +332,18 @@ function TeamView({ tasks = {}, projects, onEditTask, onDeleteTask, teamMembers 
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {getSelectedMemberTasks().map(task => {
-                      const canModify = canModifyTask(task)
-                      
-                      return (
-                        <div
-                          key={task.id}
-                          className="p-3 bg-neutral-50 hover:bg-neutral-100 rounded-lg border border-neutral-200 transition-colors group"
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 
-                              onClick={() => canModify && onEditTask(task)}
-                              className={`font-medium text-neutral-900 flex-1 transition-colors ${
-                                canModify ? 'cursor-pointer hover:text-primary-600' : 'cursor-default'
-                              }`}
-                            >
-                              {task.title}
-                            </h4>
-                            <div className="flex items-center space-x-2">
-                              {canModify && (
-                                <>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      onEditTask(task)
-                                    }}
-                                    className="p-1 hover:bg-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                    title="Editar"
-                                  >
-                                    <Edit2 size={14} className="text-primary-600" />
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      onDeleteTask(task)
-                                    }}
-                                    className="p-1 hover:bg-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                    title="Eliminar"
-                                  >
-                                    <Trash2 size={14} className="text-red-600" />
-                                  </button>
-                                </>
-                              )}
-                              <span className={`px-2 py-0.5 ${statusConfig[task.status]?.color} text-white text-xs rounded-full`}>
-                                {statusConfig[task.status]?.label}
-                              </span>
-                            </div>
-                          </div>
+                    {getSelectedMemberTasks().map(task => (
+                      <div
+                        key={task.id}
+                        onClick={() => onEditTask(task)}
+                        className="p-3 bg-neutral-50 hover:bg-neutral-100 rounded-lg border border-neutral-200 cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-medium text-neutral-900 flex-1">{task.title}</h4>
+                          <span className={`px-2 py-0.5 ${statusConfig[task.status]?.color} text-white text-xs rounded-full`}>
+                            {statusConfig[task.status]?.label}
+                          </span>
+                        </div>
                         
                         {task.description && (
                           <p className="text-xs text-neutral-600 mb-2 line-clamp-1">{task.description}</p>
@@ -425,8 +380,7 @@ function TeamView({ tasks = {}, projects, onEditTask, onDeleteTask, teamMembers 
                           )}
                         </div>
                       </div>
-                    )
-                  })}
+                    ))}
                   </div>
                 )}
               </div>

@@ -469,10 +469,12 @@ const handleSendMessage = async (receiverName, message) => {
     try {
       console.log('💾 Guardando tarea:', taskData);
       if (editingTask) {
+        console.log('📝 Actualizando tarea existente ID:', editingTask.id);
         await updateTask(editingTask.id, taskData)
         showToast('Tarea actualizada correctamente')
         addNotification('Tarea actualizada', `"${taskData.title}" ha sido modificada`, 'task')
       } else {
+        console.log('➕ Creando nueva tarea');
         const taskId = await addTask({
           ...taskData,
           projectId: selectedProjects[0].id
@@ -487,6 +489,10 @@ const handleSendMessage = async (receiverName, message) => {
           })
         }
       }
+      
+      // Cerrar modal y limpiar estado
+      setShowTaskModal(false)
+      setEditingTask(null)
     } catch (error) {
       console.error('❌ Error al guardar tarea:', error)
       showToast('Error al guardar tarea', 'error')
