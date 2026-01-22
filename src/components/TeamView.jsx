@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { User, Mail, Phone, Briefcase, Plus, Edit2, Trash2, Search, CheckCircle, Clock, MoreVertical } from 'lucide-react'
 
-function TeamView({ tasks = {}, projects, onEditTask, teamMembers = [], onAddMember, onEditMember, onDeleteMember }) {
+function TeamView({ tasks = {}, projects, onEditTask, onDeleteTask, teamMembers = [], onAddMember, onEditMember, onDeleteMember, currentUserName }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedMember, setSelectedMember] = useState(null)
 
